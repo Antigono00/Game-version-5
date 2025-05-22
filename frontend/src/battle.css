@@ -1,4 +1,4 @@
-/* src/battle.css - COMPLETE ENHANCED VERSION WITH SPACE OPTIMIZATIONS */
+/* src/battle.css - COMPLETE FIXED VERSION WITH IMPROVED STATS AND HAND */
 
 /* Battle game overlay container */
 .battle-game-overlay {
@@ -519,7 +519,7 @@
   text-align: center;
 }
 
-/* Creature Card Styles - ENHANCED WITH TWO-ROW STATS */
+/* Creature Card Styles - FIXED STATS SIZING */
 .creature-card {
   width: 130px;
   height: 190px;
@@ -672,7 +672,7 @@
   filter: grayscale(0.3);
 }
 
-/* ENHANCED: Two-row creature card footer */
+/* FIXED: Better sized creature card footer */
 .creature-card-footer {
   height: 36px; /* ENHANCED: Increased from 30px */
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.9));
@@ -731,31 +731,32 @@
   pointer-events: none;
 }
 
-/* ENHANCED: Two-row stats grid */
+/* FIXED: Properly sized stats grid with better alignment */
 .mini-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(2, 1fr);
-  gap: 2px;
-  padding: 1px;
-  height: 100%;
+  gap: 1px;
+  padding: 1px 2px;
+  height: calc(100% - 7px); /* Account for health bar */
   align-items: center;
 }
 
 .mini-stat {
-  font-size: 9px; /* ENHANCED: Slightly increased for readability */
-  padding: 1px 2px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  font-size: 7px; /* FIXED: Reduced from 9px for better fit */
+  padding: 0px 1px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ccc;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #bbb;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.2s ease;
   white-space: nowrap;
   min-width: 0;
-  height: 14px;
+  height: 12px; /* FIXED: Reduced from 14px */
+  gap: 1px; /* FIXED: Add gap between icon and value */
 }
 
 /* ENHANCED: Position specific stats logically */
@@ -766,11 +767,11 @@
 .mini-stat:nth-child(5) { grid-column: 2; grid-row: 2; } /* Magical Defense */
 
 .mini-stat.primary {
-  background: rgba(76, 175, 80, 0.3);
-  border-color: rgba(76, 175, 80, 0.5);
-  color: #fff;
-  font-weight: bold;
-  box-shadow: 0 0 4px rgba(76, 175, 80, 0.3);
+  background: rgba(76, 175, 80, 0.25);
+  border-color: rgba(76, 175, 80, 0.4);
+  color: #e8f5e9;
+  font-weight: 600;
+  box-shadow: 0 0 3px rgba(76, 175, 80, 0.2);
   z-index: 1;
 }
 
@@ -778,19 +779,20 @@
 .mini-stat.special-slot {
   grid-column: 3;
   grid-row: 2;
-  background: rgba(255, 215, 0, 0.1);
-  border-color: rgba(255, 215, 0, 0.3);
+  background: rgba(255, 215, 0, 0.08);
+  border-color: rgba(255, 215, 0, 0.2);
 }
 
-/* ENHANCED: Stat icons and values */
+/* FIXED: Smaller stat icons and values */
 .mini-stat .stat-icon {
-  font-size: 10px;
-  margin-right: 2px;
+  font-size: 8px; /* FIXED: Reduced from 10px */
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+  flex-shrink: 0;
 }
 
 .mini-stat .stat-value {
   font-weight: 500;
+  font-size: 7px; /* FIXED: Explicit size */
 }
 
 .specialty-indicator,
@@ -798,6 +800,7 @@
   font-weight: bold;
   color: #FFD700;
   text-shadow: 0 0 3px rgba(255, 215, 0, 0.5);
+  font-size: 8px;
 }
 
 .status-effects {
@@ -892,7 +895,7 @@
   height: 114px;
 }
 
-/* Player hand styles - ENHANCED COLLAPSIBLE */
+/* Player hand styles - ENHANCED WITH CARD NAME VISIBILITY */
 .player-hand {
   position: relative;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.8));
@@ -900,12 +903,12 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   flex-shrink: 0;
-  height: 60px; /* ENHANCED: Collapsed height by default */
+  height: 80px; /* FIXED: Increased collapsed height to show names */
 }
 
 .player-hand:hover,
 .player-hand.expanded {
-  height: 160px; /* ENHANCED: Full height on hover */
+  height: 160px; /* Full height on hover */
   box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
   z-index: 10;
 }
@@ -919,7 +922,7 @@
   font-weight: bold;
   margin: 5px 0 3px 15px;
   color: #4CAF50;
-  font-size: 12px; /* ENHANCED: Reduced from 14px */
+  font-size: 12px;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   position: relative;
   z-index: 2;
@@ -947,25 +950,62 @@
   padding: 5px 15px 10px 15px;
   -webkit-overflow-scrolling: touch;
   transition: all 0.3s ease;
-  opacity: 0.5;
-  transform: translateY(20px);
 }
 
-.player-hand:hover .hand-cards,
-.player-hand.expanded .hand-cards {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* ENHANCED: Small preview of cards when collapsed */
-.player-hand:not(:hover):not(.expanded) .creature-card {
-  transform: translateY(100px);
-}
-
-/* ENHANCED: Hand card wrapper */
+/* FIXED: Hand card wrappers for collapsed state */
 .hand-card-wrapper {
   position: relative;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* FIXED: Collapsed state shows card names */
+.player-hand:not(:hover):not(.expanded) .hand-card-wrapper {
+  width: 80px;
+  overflow: visible;
+}
+
+.player-hand:not(:hover):not(.expanded) .creature-card {
+  transform: translateY(95px); /* Show only the top portion */
+  width: 80px;
+  height: 140px;
+}
+
+/* FIXED: Card name label for collapsed state */
+.card-name-label {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  color: #ccc;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 75px;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 3px;
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.player-hand:hover .card-name-label,
+.player-hand.expanded .card-name-label {
+  opacity: 0;
+  transform: translateX(-50%) translateY(10px);
+}
+
+/* FIXED: Full card preview on hover/tap */
+.hand-card-wrapper:hover .creature-card,
+.hand-card-wrapper.tapped .creature-card {
+  transform: translateY(-10px) scale(1.1);
+  z-index: 100;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
 }
 
 .hand-card-wrapper.hidden-card {
@@ -1209,9 +1249,11 @@
   box-shadow: 0 4px 15px rgba(0, 188, 212, 0.4);
 }
 
+/* FIXED: End Turn button with full text */
 .action-btn.end-turn { 
   background: linear-gradient(135deg, #607D8B, #78909C);
   box-shadow: 0 2px 8px rgba(96, 125, 139, 0.3);
+  min-width: 90px; /* Ensure space for full text */
 }
 .action-btn.end-turn:hover:not(:disabled) {
   box-shadow: 0 4px 15px rgba(96, 125, 139, 0.4);
@@ -2049,8 +2091,17 @@
   }
   
   .mini-stat {
-    font-size: 8px;
-    height: 12px;
+    font-size: 6px;
+    height: 10px;
+    padding: 0;
+  }
+  
+  .mini-stat .stat-icon {
+    font-size: 7px;
+  }
+  
+  .mini-stat .stat-value {
+    font-size: 6px;
   }
   
   .status-icon {
@@ -2060,12 +2111,22 @@
   }
   
   .player-hand {
-    height: 50px;
+    height: 70px;
   }
   
   .player-hand:hover,
   .player-hand.expanded {
     height: 140px;
+  }
+  
+  .player-hand:not(:hover):not(.expanded) .creature-card {
+    transform: translateY(85px);
+    width: 70px;
+  }
+  
+  .card-name-label {
+    font-size: 8px;
+    max-width: 65px;
   }
   
   .action-panel {
@@ -2208,7 +2269,7 @@
   
   /* Remove hover effects, use tap toggle instead */
   .player-hand:hover {
-    height: 60px; /* Stay collapsed unless tapped */
+    height: 80px; /* Stay collapsed unless tapped */
   }
   
   .battle-log:hover {
