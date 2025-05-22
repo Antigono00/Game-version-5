@@ -1,4 +1,4 @@
-// src/utils/battleAI.js
+// src/utils/battleAI.js - COMPLETELY REWRITTEN FOR MAXIMUM INTELLIGENCE AND DIFFICULTY
 
 // Get max enemy field size based on difficulty
 const getMaxEnemyFieldSize = (difficulty) => {
@@ -11,7 +11,7 @@ const getMaxEnemyFieldSize = (difficulty) => {
   }
 };
 
-// Determine AI action based on game state and difficulty
+// ENHANCED AI ACTION DETERMINATION WITH MULTI-ACTION CAPABILITY
 export const determineAIAction = (
   difficulty, 
   enemyHand, 
@@ -21,116 +21,644 @@ export const determineAIAction = (
   enemySpells = [], 
   enemyEnergy = 10
 ) => {
-  // Log available resources for debugging
-  console.log(`AI Turn - Difficulty: ${difficulty}`);
-  console.log(`Energy: ${enemyEnergy}, Hand: ${enemyHand.length}, Field: ${enemyField.length}`);
+  console.log(`AI Turn - Difficulty: ${difficulty}, Energy: ${enemyEnergy}, Hand: ${enemyHand.length}, Field: ${enemyField.length}`);
   
-  // Get the max field size based on difficulty
+  // Get difficulty settings for advanced AI behavior
+  const difficultySettings = getDifficultySettings(difficulty);
   const maxFieldSize = getMaxEnemyFieldSize(difficulty);
   
-  // SAFEGUARD: Add safety checks to prevent infinite loops
-  // If no valid action is possible, return 'endTurn'
-  if (
-    // Check if battlefield is full
-    (enemyField.length >= maxFieldSize) ||
-    // Check if no energy
-    enemyEnergy <= 0 ||
-    // Check if no cards in hand or no creatures on field
-    (enemyHand.length === 0 && enemyField.length === 0)
-  ) {
-    console.log("AI SAFEGUARD triggered: Ending turn");
+  // ENHANCED SAFEGUARD: Only end turn if truly no actions possible
+  if (enemyEnergy <= 0 && enemyField.length === 0 && enemyHand.length === 0) {
+    console.log("AI SAFEGUARD triggered: Ending turn - no energy, no creatures");
     return { type: 'endTurn' };
   }
   
-  // Normal AI logic based on difficulty
+  // NEW: Multi-action planning system
+  const actionPlan = planOptimalActions(
+    difficulty,
+    enemyHand,
+    enemyField,
+    playerField,
+    enemyEnergy,
+    maxFieldSize,
+    difficultySettings
+  );
+  
+  if (actionPlan && actionPlan.length > 0) {
+    // Return the first action from the plan
+    return actionPlan[0];
+  }
+  
+  // Fallback to single action if planning fails
+  return determineSingleAction(difficulty, enemyHand, enemyField, playerField, enemyEnergy, maxFieldSize);
+};
+
+// NEW: Get difficulty settings (should be imported from difficultySettings.js in real implementation)
+const getDifficultySettings = (difficulty) => {
+  const settings = {
+    easy: { multiActionChance: 0.3, aggressionLevel: 0.4 },
+    medium: { multiActionChance: 0.5, aggressionLevel: 0.6 },
+    hard: { multiActionChance: 0.7, aggressionLevel: 0.75 },
+    expert: { multiActionChance: 0.9, aggressionLevel: 0.85 }
+  };
+  return settings[difficulty] || settings.medium;
+};
+
+// NEW: Advanced multi-action planning system
+const planOptimalActions = (difficulty, enemyHand, enemyField, playerField, enemyEnergy, maxFieldSize, settings) => {
+  const actions = [];
+  let remainingEnergy = enemyEnergy;
+  let currentField = [...enemyField];
+  let currentHand = [...enemyHand];
+  
+  // Calculate board state priorities
+  const boardAnalysis = analyzeBoardState(enemyField, playerField, difficulty);
+  
+  console.log("Board Analysis:", boardAnalysis);
+  
+  // PRIORITY 1: Emergency defense if we're about to lose key creatures
+  if (boardAnalysis.immediateThreats.length > 0 && remainingEnergy >= 1) {
+    for (const threat of boardAnalysis.immediateThreats) {
+      if (remainingEnergy >= 1 && !threat.isDefending) {
+        actions.push({
+          type: 'defend',
+          creature: threat,
+          energyCost: 1,
+          priority: 'emergency'
+        });
+        remainingEnergy -= 1;
+      }
+    }
+  }
+  
+  // PRIORITY 2: Lethal attacks if we can win this turn
+  const lethalActions = findLethalSequence(currentField, playerField, remainingEnergy);
+  if (lethalActions.length > 0) {
+    console.log("Found lethal sequence:", lethalActions);
+    return lethalActions; // Execute lethal immediately
+  }
+  
+  // PRIORITY 3: Aggressive multi-attack strategy based on difficulty
+  if (boardAnalysis.shouldAttackAggressively && remainingEnergy >= 2) {
+    const attackSequence = planAttackSequence(currentField, playerField, remainingEnergy, settings.aggressionLevel);
+    
+    // Execute multiple attacks if profitable
+    for (const attack of attackSequence) {
+      if (remainingEnergy >= attack.energyCost) {
+        actions.push(attack);
+        remainingEnergy -= attack.energyCost;
+      }
+    }
+  }
+  
+  // PRIORITY 4: Strategic deployment (only if we need more field presence)
+  if (currentField.length < maxFieldSize && currentHand.length > 0 && remainingEnergy >= 3) {
+    const deploymentNeed = assessDeploymentNeed(currentField, playerField, boardAnalysis);
+    
+    if (deploymentNeed.shouldDeploy) {
+      const bestCreature = selectBestCreatureForDeployment(currentHand, playerField, remainingEnergy, difficulty);
+      
+      if (bestCreature) {
+        const energyCost = bestCreature.battleStats?.energyCost || 3;
+        if (remainingEnergy >= energyCost) {
+          actions.push({
+            type: 'deploy',
+            creature: bestCreature,
+            energyCost: energyCost,
+            priority: 'strategic'
+          });
+          remainingEnergy -= energyCost;
+          currentField.push(bestCreature);
+          currentHand = currentHand.filter(c => c.id !== bestCreature.id);
+        }
+      }
+    }
+  }
+  
+  // PRIORITY 5: Additional attacks if we still have energy and targets
+  if (remainingEnergy >= 2 && currentField.length > 0 && playerField.length > 0) {
+    const additionalAttacks = planAdditionalAttacks(currentField, playerField, remainingEnergy, actions);
+    actions.push(...additionalAttacks);
+  }
+  
+  // PRIORITY 6: Defensive positioning if we have remaining energy
+  if (remainingEnergy >= 1 && currentField.length > 0) {
+    const defensiveActions = planDefensiveActions(currentField, playerField, remainingEnergy, actions);
+    actions.push(...defensiveActions);
+  }
+  
+  console.log(`AI planned ${actions.length} actions:`, actions.map(a => `${a.type}(${a.energyCost})`));
+  return actions;
+};
+
+// NEW: Analyze current board state for strategic decisions
+const analyzeBoardState = (enemyField, playerField, difficulty) => {
+  const analysis = {
+    enemyTotalPower: 0,
+    playerTotalPower: 0,
+    enemyAvgHealth: 0,
+    playerAvgHealth: 0,
+    immediateThreats: [],
+    weakEnemies: [],
+    shouldAttackAggressively: false,
+    fieldControlRatio: 0
+  };
+  
+  // Calculate total power and health
+  enemyField.forEach(creature => {
+    const power = Math.max(
+      creature.battleStats?.physicalAttack || 0,
+      creature.battleStats?.magicalAttack || 0
+    );
+    analysis.enemyTotalPower += power;
+    analysis.enemyAvgHealth += (creature.currentHealth / creature.battleStats?.maxHealth || 1);
+    
+    // Identify creatures in immediate danger (low health)
+    if (creature.currentHealth < (creature.battleStats?.maxHealth || 50) * 0.3) {
+      analysis.immediateThreats.push(creature);
+    }
+  });
+  
+  playerField.forEach(creature => {
+    const power = Math.max(
+      creature.battleStats?.physicalAttack || 0,
+      creature.battleStats?.magicalAttack || 0
+    );
+    analysis.playerTotalPower += power;
+    analysis.playerAvgHealth += (creature.currentHealth / creature.battleStats?.maxHealth || 1);
+    
+    // Identify weak player creatures we can easily defeat
+    if (creature.currentHealth < (creature.battleStats?.maxHealth || 50) * 0.4) {
+      analysis.weakEnemies.push(creature);
+    }
+  });
+  
+  // Calculate averages
+  if (enemyField.length > 0) {
+    analysis.enemyAvgHealth /= enemyField.length;
+  }
+  if (playerField.length > 0) {
+    analysis.playerAvgHealth /= playerField.length;
+  }
+  
+  // Determine aggression strategy
+  analysis.fieldControlRatio = enemyField.length / Math.max(playerField.length, 1);
+  analysis.shouldAttackAggressively = (
+    analysis.enemyTotalPower > analysis.playerTotalPower * 0.8 ||
+    analysis.weakEnemies.length >= 2 ||
+    analysis.fieldControlRatio >= 1.2 ||
+    difficulty === 'hard' || difficulty === 'expert'
+  );
+  
+  return analysis;
+};
+
+// NEW: Find sequence of actions that would win the game this turn
+const findLethalSequence = (enemyField, playerField, availableEnergy) => {
+  if (playerField.length === 0) return [];
+  
+  const lethalActions = [];
+  let totalDamageNeeded = 0;
+  
+  // Calculate total damage needed to defeat all player creatures
+  playerField.forEach(creature => {
+    totalDamageNeeded += creature.currentHealth;
+  });
+  
+  // Find available attackers and their potential damage
+  const availableAttackers = enemyField.filter(creature => !creature.isDefending);
+  let totalPotentialDamage = 0;
+  let requiredEnergy = 0;
+  
+  // Calculate maximum possible damage with available energy
+  availableAttackers.forEach(attacker => {
+    const maxAttacks = Math.floor(availableEnergy / 2); // Each attack costs 2 energy
+    for (let i = 0; i < maxAttacks && requiredEnergy + 2 <= availableEnergy; i++) {
+      // Find best target for this attacker
+      const bestTarget = findBestAttackTarget(attacker, playerField);
+      if (bestTarget) {
+        const estimatedDamage = estimateAttackDamage(attacker, bestTarget);
+        totalPotentialDamage += estimatedDamage;
+        requiredEnergy += 2;
+        
+        lethalActions.push({
+          type: 'attack',
+          attacker: attacker,
+          target: bestTarget,
+          energyCost: 2,
+          estimatedDamage: estimatedDamage,
+          priority: 'lethal'
+        });
+        
+        // If we can defeat this target, remove it from consideration
+        if (estimatedDamage >= bestTarget.currentHealth) {
+          playerField = playerField.filter(c => c.id !== bestTarget.id);
+        }
+      }
+    }
+  });
+  
+  // Return lethal sequence if we can defeat all enemies
+  if (totalPotentialDamage >= totalDamageNeeded && playerField.length === 0) {
+    console.log(`Found lethal: ${totalPotentialDamage} damage vs ${totalDamageNeeded} needed`);
+    return lethalActions;
+  }
+  
+  return [];
+};
+
+// NEW: Plan optimal attack sequence for maximum damage
+const planAttackSequence = (enemyField, playerField, availableEnergy, aggressionLevel) => {
+  const attacks = [];
+  const availableAttackers = enemyField.filter(creature => !creature.isDefending);
+  
+  // Sort attackers by attack power (strongest first)
+  availableAttackers.sort((a, b) => {
+    const aAttack = Math.max(a.battleStats?.physicalAttack || 0, a.battleStats?.magicalAttack || 0);
+    const bAttack = Math.max(b.battleStats?.physicalAttack || 0, b.battleStats?.magicalAttack || 0);
+    return bAttack - aAttack;
+  });
+  
+  // Sort targets by priority (weakest first for easy kills, then strongest threats)
+  const prioritizedTargets = [...playerField].sort((a, b) => {
+    const aHealthRatio = a.currentHealth / (a.battleStats?.maxHealth || 50);
+    const bHealthRatio = b.currentHealth / (b.battleStats?.maxHealth || 50);
+    
+    // Prioritize low-health enemies for easy eliminations
+    if (aHealthRatio < 0.4 && bHealthRatio >= 0.4) return -1;
+    if (bHealthRatio < 0.4 && aHealthRatio >= 0.4) return 1;
+    
+    // Then prioritize by threat level
+    const aThreat = Math.max(a.battleStats?.physicalAttack || 0, a.battleStats?.magicalAttack || 0);
+    const bThreat = Math.max(b.battleStats?.physicalAttack || 0, b.battleStats?.magicalAttack || 0);
+    return bThreat - aThreat;
+  });
+  
+  // Plan attacks based on aggression level
+  const maxAttacks = Math.floor(availableEnergy / 2);
+  const targetAttacks = Math.ceil(maxAttacks * aggressionLevel);
+  
+  for (let i = 0; i < targetAttacks && availableEnergy >= 2; i++) {
+    const attacker = availableAttackers[i % availableAttackers.length];
+    const target = prioritizedTargets[Math.floor(i / availableAttackers.length)] || prioritizedTargets[0];
+    
+    if (attacker && target) {
+      attacks.push({
+        type: 'attack',
+        attacker: attacker,
+        target: target,
+        energyCost: 2,
+        priority: 'aggressive'
+      });
+      availableEnergy -= 2;
+    }
+  }
+  
+  return attacks;
+};
+
+// NEW: Assess whether we need more creatures on the field
+const assessDeploymentNeed = (enemyField, playerField, boardAnalysis) => {
+  const needsMoreCreatures = (
+    enemyField.length < playerField.length ||
+    boardAnalysis.enemyTotalPower < boardAnalysis.playerTotalPower ||
+    enemyField.length < 2
+  );
+  
+  return {
+    shouldDeploy: needsMoreCreatures,
+    urgency: enemyField.length === 0 ? 'critical' : 
+             enemyField.length < playerField.length ? 'high' : 'normal'
+  };
+};
+
+// NEW: Select best creature for deployment based on board state
+const selectBestCreatureForDeployment = (enemyHand, playerField, availableEnergy, difficulty) => {
+  const affordableCreatures = enemyHand.filter(creature => {
+    const energyCost = creature.battleStats?.energyCost || 3;
+    return energyCost <= availableEnergy;
+  });
+  
+  if (affordableCreatures.length === 0) return null;
+  
+  // Score creatures based on multiple factors
+  const scoredCreatures = affordableCreatures.map(creature => {
+    let score = 0;
+    
+    // Base stats score
+    const statTotal = Object.values(creature.stats || {}).reduce((sum, val) => sum + val, 0);
+    score += statTotal * 2;
+    
+    // Attack power score
+    const attackPower = Math.max(
+      creature.battleStats?.physicalAttack || 0,
+      creature.battleStats?.magicalAttack || 0
+    );
+    score += attackPower * 3;
+    
+    // Health score
+    score += (creature.battleStats?.maxHealth || 50);
+    
+    // Rarity bonus
+    switch (creature.rarity) {
+      case 'Legendary': score *= 1.5; break;
+      case 'Epic': score *= 1.3; break;
+      case 'Rare': score *= 1.1; break;
+    }
+    
+    // Form bonus
+    score *= (1 + (creature.form || 0) * 0.2);
+    
+    // Counter-meta scoring (against player field)
+    playerField.forEach(playerCreature => {
+      if (playerCreature.stats) {
+        // Bonus for countering player strengths
+        if (playerCreature.stats.strength > 7 && creature.stats?.magic > 6) score += 20;
+        if (playerCreature.stats.magic > 7 && creature.stats?.speed > 6) score += 20;
+        if (playerCreature.stats.speed > 7 && creature.stats?.stamina > 6) score += 20;
+      }
+    });
+    
+    // Energy efficiency score
+    const energyCost = creature.battleStats?.energyCost || 3;
+    score = score / energyCost; // Higher score per energy spent is better
+    
+    return { creature, score };
+  });
+  
+  // Sort by score and return the best
+  scoredCreatures.sort((a, b) => b.score - a.score);
+  return scoredCreatures[0].creature;
+};
+
+// NEW: Plan additional attacks after main strategy
+const planAdditionalAttacks = (enemyField, playerField, remainingEnergy, existingActions) => {
+  const additionalAttacks = [];
+  
+  // Don't duplicate existing attack targets
+  const existingTargets = new Set(
+    existingActions
+      .filter(action => action.type === 'attack')
+      .map(action => action.target.id)
+  );
+  
+  const availableTargets = playerField.filter(creature => !existingTargets.has(creature.id));
+  const availableAttackers = enemyField.filter(creature => !creature.isDefending);
+  
+  // Plan additional attacks with remaining energy
+  while (remainingEnergy >= 2 && availableAttackers.length > 0 && availableTargets.length > 0) {
+    const attacker = availableAttackers[Math.floor(Math.random() * availableAttackers.length)];
+    const target = findBestAttackTarget(attacker, availableTargets);
+    
+    if (target) {
+      additionalAttacks.push({
+        type: 'attack',
+        attacker: attacker,
+        target: target,
+        energyCost: 2,
+        priority: 'additional'
+      });
+      
+      remainingEnergy -= 2;
+      
+      // Remove target from available targets to avoid duplicate attacks
+      const targetIndex = availableTargets.indexOf(target);
+      if (targetIndex > -1) {
+        availableTargets.splice(targetIndex, 1);
+      }
+    } else {
+      break;
+    }
+  }
+  
+  return additionalAttacks;
+};
+
+// NEW: Plan defensive actions for vulnerable creatures
+const planDefensiveActions = (enemyField, playerField, remainingEnergy, existingActions) => {
+  const defensiveActions = [];
+  
+  // Don't defend creatures that are already being defended
+  const alreadyDefending = new Set(
+    existingActions
+      .filter(action => action.type === 'defend')
+      .map(action => action.creature.id)
+  );
+  
+  // Find creatures that need defense
+  const vulnerableCreatures = enemyField.filter(creature => {
+    if (alreadyDefending.has(creature.id) || creature.isDefending) return false;
+    
+    const healthRatio = creature.currentHealth / (creature.battleStats?.maxHealth || 50);
+    const isValueableCreature = (
+      creature.rarity === 'Legendary' || 
+      creature.rarity === 'Epic' ||
+      creature.form >= 2
+    );
+    
+    return healthRatio < 0.5 || (isValueableCreature && healthRatio < 0.7);
+  });
+  
+  // Sort by priority (most valuable/vulnerable first)
+  vulnerableCreatures.sort((a, b) => {
+    const aHealthRatio = a.currentHealth / (a.battleStats?.maxHealth || 50);
+    const bHealthRatio = b.currentHealth / (b.battleStats?.maxHealth || 50);
+    
+    const aValue = getRarityValue(a.rarity) + (a.form || 0);
+    const bValue = getRarityValue(b.rarity) + (b.form || 0);
+    
+    // Lower health ratio + higher value = higher priority
+    return (aHealthRatio - bHealthRatio) + (bValue - aValue) * 0.1;
+  });
+  
+  // Add defensive actions for the most critical creatures
+  for (const creature of vulnerableCreatures) {
+    if (remainingEnergy >= 1) {
+      defensiveActions.push({
+        type: 'defend',
+        creature: creature,
+        energyCost: 1,
+        priority: 'defensive'
+      });
+      remainingEnergy -= 1;
+    }
+  }
+  
+  return defensiveActions;
+};
+
+// Helper: Find best attack target for a given attacker
+const findBestAttackTarget = (attacker, playerField) => {
+  if (playerField.length === 0) return null;
+  
+  return playerField.reduce((bestTarget, currentTarget) => {
+    if (!bestTarget) return currentTarget;
+    
+    const bestScore = calculateTargetScore(attacker, bestTarget);
+    const currentScore = calculateTargetScore(attacker, currentTarget);
+    
+    return currentScore > bestScore ? currentTarget : bestTarget;
+  }, null);
+};
+
+// Helper: Calculate target priority score
+const calculateTargetScore = (attacker, target) => {
+  let score = 0;
+  
+  // Prioritize low-health targets for easy eliminations
+  const healthRatio = target.currentHealth / (target.battleStats?.maxHealth || 50);
+  score += (1 - healthRatio) * 100;
+  
+  // Prioritize high-threat targets
+  const threatLevel = Math.max(
+    target.battleStats?.physicalAttack || 0,
+    target.battleStats?.magicalAttack || 0
+  );
+  score += threatLevel;
+  
+  // Prioritize targets we can actually damage effectively
+  const estimatedDamage = estimateAttackDamage(attacker, target);
+  score += estimatedDamage;
+  
+  // Bonus for potentially defeating the target
+  if (estimatedDamage >= target.currentHealth) {
+    score += 50; // Big bonus for eliminations
+  }
+  
+  return score;
+};
+
+// Helper: Estimate attack damage
+const estimateAttackDamage = (attacker, defender) => {
+  const attackerPhysical = attacker.battleStats?.physicalAttack || 0;
+  const attackerMagical = attacker.battleStats?.magicalAttack || 0;
+  const defenderPhysical = defender.battleStats?.physicalDefense || 0;
+  const defenderMagical = defender.battleStats?.magicalDefense || 0;
+  
+  // Calculate both attack types and use the better one
+  const physicalDamage = Math.max(1, attackerPhysical - defenderPhysical);
+  const magicalDamage = Math.max(1, attackerMagical - defenderMagical);
+  
+  return Math.max(physicalDamage, magicalDamage);
+};
+
+// Helper: Get numeric value for rarity comparison
+const getRarityValue = (rarity) => {
+  switch (rarity) {
+    case 'Legendary': return 4;
+    case 'Epic': return 3;
+    case 'Rare': return 2;
+    default: return 1;
+  }
+};
+
+// FALLBACK: Single action determination for simpler cases
+const determineSingleAction = (difficulty, enemyHand, enemyField, playerField, enemyEnergy, maxFieldSize) => {
+  // Use existing AI logic as fallback
   switch (difficulty) {
     case 'easy':
       return determineEasyAIAction(enemyHand, enemyField, playerField, enemyEnergy, maxFieldSize);
     case 'medium':
       return determineMediumAIAction(enemyHand, enemyField, playerField, enemyEnergy, maxFieldSize);
     case 'hard':
-      return determineHardAIAction(enemyHand, enemyField, playerField, enemyTools, enemySpells, enemyEnergy, maxFieldSize);
+      return determineHardAIAction(enemyHand, enemyField, playerField, [], [], enemyEnergy, maxFieldSize);
     case 'expert':
-      return determineExpertAIAction(enemyHand, enemyField, playerField, enemyTools, enemySpells, enemyEnergy, maxFieldSize);
+      return determineExpertAIAction(enemyHand, enemyField, playerField, [], [], enemyEnergy, maxFieldSize);
     default:
-      return determineEasyAIAction(enemyHand, enemyField, playerField, enemyEnergy, maxFieldSize);
+      return { type: 'endTurn' };
   }
 };
 
-// Easy AI (Random actions with basic logic)
+// ENHANCED Easy AI - More aggressive than before
 const determineEasyAIAction = (enemyHand, enemyField, playerField, enemyEnergy, maxFieldSize) => {
-  // If no creatures on field and have cards in hand, deploy one
-  if (enemyField.length < maxFieldSize && enemyHand.length > 0) {
-    // Just pick a random creature
-    const randomCreature = enemyHand[Math.floor(Math.random() * enemyHand.length)];
-    
-    // Check if we have enough energy
-    const energyCost = randomCreature.battleStats?.energyCost || 3;
-    if (enemyEnergy < energyCost) {
-      console.log(`Not enough energy to deploy creature (need ${energyCost}, have ${enemyEnergy})`);
-      return { type: 'endTurn' };
+  // ATTACK FIRST STRATEGY - Much more aggressive
+  if (enemyField.length > 0 && playerField.length > 0 && enemyEnergy >= 2) {
+    // 85% chance to attack (increased from previous versions)
+    if (Math.random() < 0.85) {
+      const attacker = enemyField[Math.floor(Math.random() * enemyField.length)];
+      const target = findBestAttackTarget(attacker, playerField);
+      
+      if (attacker && target) {
+        return {
+          type: 'attack',
+          attacker: attacker,
+          target: target,
+          energyCost: 2
+        };
+      }
     }
-    
-    return {
-      type: 'deploy',
-      creature: randomCreature,
-      energyCost: energyCost // Include the energy cost for proper deduction
-    };
   }
   
-  // If creatures on field and player has creatures, attack randomly
-  if (enemyField.length > 0 && playerField.length > 0) {
-    const randomAttacker = enemyField[Math.floor(Math.random() * enemyField.length)];
-    const randomTarget = playerField[Math.floor(Math.random() * playerField.length)];
+  // Deploy only if we have very few creatures
+  if (enemyField.length < 2 && enemyHand.length > 0) {
+    const affordableCreatures = enemyHand.filter(creature => {
+      const energyCost = creature.battleStats?.energyCost || 3;
+      return energyCost <= enemyEnergy;
+    });
     
-    // 30% chance to defend instead of attack
-    if (Math.random() < 0.3 && !randomAttacker.isDefending) {
+    if (affordableCreatures.length > 0) {
+      const creature = affordableCreatures[Math.floor(Math.random() * affordableCreatures.length)];
       return {
-        type: 'defend',
-        creature: randomAttacker
-      };
-    }
-    
-    return {
-      type: 'attack',
-      attacker: randomAttacker,
-      target: randomTarget
-    };
-  }
-  
-  // If creatures on field but player has none, just defend
-  if (enemyField.length > 0 && playerField.length === 0) {
-    const randomCreature = enemyField[Math.floor(Math.random() * enemyField.length)];
-    
-    // Only defend if not already defending
-    if (!randomCreature.isDefending) {
-      return {
-        type: 'defend',
-        creature: randomCreature
+        type: 'deploy',
+        creature: creature,
+        energyCost: creature.battleStats?.energyCost || 3
       };
     }
   }
   
-  // If no valid action, end turn
+  // Defend as last resort
+  if (enemyField.length > 0 && enemyEnergy >= 1) {
+    const vulnerableCreature = enemyField.find(creature => 
+      !creature.isDefending && 
+      creature.currentHealth < (creature.battleStats?.maxHealth || 50) * 0.4
+    );
+    
+    if (vulnerableCreature) {
+      return {
+        type: 'defend',
+        creature: vulnerableCreature,
+        energyCost: 1
+      };
+    }
+  }
+  
   return { type: 'endTurn' };
 };
 
-// Medium AI (Smarter targeting but not optimal)
+// ENHANCED Medium AI - Strategic and aggressive
 const determineMediumAIAction = (enemyHand, enemyField, playerField, enemyEnergy, maxFieldSize) => {
-  // Deploy strongest creature from hand if field isn't full
-  if (enemyField.length < maxFieldSize && enemyHand.length > 0) {
-    // Find creature with highest combined stats
-    const bestCreature = enemyHand.reduce((best, current) => {
-      if (!current.stats) return best;
+  // PRIORITY 1: Aggressive multi-attack if we have the energy and advantage
+  if (enemyField.length >= playerField.length && enemyEnergy >= 4 && playerField.length > 0) {
+    const strongAttacker = enemyField.reduce((best, current) => {
       if (!best) return current;
-      
-      const currentTotal = Object.values(current.stats).reduce((sum, val) => sum + val, 0);
-      const bestTotal = Object.values(best.stats).reduce((sum, val) => sum + val, 0);
-      return currentTotal > bestTotal ? current : best;
+      const currentAttack = Math.max(
+        current.battleStats?.physicalAttack || 0,
+        current.battleStats?.magicalAttack || 0
+      );
+      const bestAttack = Math.max(
+        best.battleStats?.physicalAttack || 0,
+        best.battleStats?.magicalAttack || 0
+      );
+      return currentAttack > bestAttack ? current : best;
     }, null);
     
+    if (strongAttacker) {
+      const target = findBestAttackTarget(strongAttacker, playerField);
+      if (target) {
+        return {
+          type: 'attack',
+          attacker: strongAttacker,
+          target: target,
+          energyCost: 2
+        };
+      }
+    }
+  }
+  
+  // PRIORITY 2: Deploy strong creatures strategically
+  if (enemyField.length < maxFieldSize && enemyHand.length > 0) {
+    const bestCreature = selectBestCreatureForDeployment(enemyHand, playerField, enemyEnergy, 'medium');
     if (bestCreature) {
-      // Check if we have enough energy
       const energyCost = bestCreature.battleStats?.energyCost || 3;
       if (enemyEnergy >= energyCost) {
         return {
@@ -142,301 +670,58 @@ const determineMediumAIAction = (enemyHand, enemyField, playerField, enemyEnergy
     }
   }
   
-  // Attack targeting lowest health enemy if we have creatures on field
-  if (enemyField.length > 0 && playerField.length > 0) {
-    // Find attacker with highest attack stat
-    const bestAttacker = enemyField.reduce((best, current) => {
-      if (!current.battleStats) return best;
-      if (!best) return current;
-      
-      const currentAttack = Math.max(
-        current.battleStats.physicalAttack || 0, 
-        current.battleStats.magicalAttack || 0
-      );
-      const bestAttack = Math.max(
-        best.battleStats.physicalAttack || 0, 
-        best.battleStats.magicalAttack || 0
-      );
-      return currentAttack > bestAttack ? current : best;
-    }, null);
+  // PRIORITY 3: Attack with any available creature
+  if (enemyField.length > 0 && playerField.length > 0 && enemyEnergy >= 2) {
+    const attacker = enemyField.find(creature => !creature.isDefending);
+    const target = findBestAttackTarget(attacker, playerField);
     
-    // Find target with lowest health
-    const weakestTarget = playerField.reduce((weakest, current) => {
-      if (!weakest) return current;
-      return current.currentHealth < weakest.currentHealth ? current : weakest;
-    }, null);
-    
-    // 25% chance to defend if creature is below 30% health or if player has no creatures
-    if (bestAttacker && !bestAttacker.isDefending && 
-        (playerField.length === 0 || 
-         (bestAttacker.currentHealth < bestAttacker.battleStats.maxHealth * 0.3 && Math.random() < 0.25))) {
-      return {
-        type: 'defend',
-        creature: bestAttacker
-      };
-    }
-    
-    // Attack with best attacker against weakest target
-    if (bestAttacker && weakestTarget) {
+    if (attacker && target) {
       return {
         type: 'attack',
-        attacker: bestAttacker,
-        target: weakestTarget
+        attacker: attacker,
+        target: target,
+        energyCost: 2
       };
     }
   }
   
-  // Defend with low health creatures
-  if (enemyField.length > 0 && (playerField.length === 0 || Math.random() < 0.4)) {
-    // Find creature with lowest health percentage
-    const lowestHealthCreature = enemyField.reduce((lowest, current) => {
-      if (!current.battleStats || current.isDefending) return lowest;
-      if (!lowest) return current;
-      
-      const currentHealthPercent = current.currentHealth / current.battleStats.maxHealth;
-      const lowestHealthPercent = lowest.currentHealth / lowest.battleStats.maxHealth;
-      return currentHealthPercent < lowestHealthPercent ? current : lowest;
-    }, null);
+  // PRIORITY 4: Defend valuable creatures
+  if (enemyField.length > 0 && enemyEnergy >= 1) {
+    const valuableCreature = enemyField.find(creature => 
+      !creature.isDefending && 
+      (creature.rarity === 'Epic' || creature.rarity === 'Legendary' || 
+       creature.currentHealth < (creature.battleStats?.maxHealth || 50) * 0.3)
+    );
     
-    if (lowestHealthCreature && lowestHealthCreature.currentHealth / lowestHealthCreature.battleStats.maxHealth < 0.5) {
+    if (valuableCreature) {
       return {
         type: 'defend',
-        creature: lowestHealthCreature
+        creature: valuableCreature,
+        energyCost: 1
       };
     }
   }
   
-  // If no valid action, end turn
   return { type: 'endTurn' };
 };
 
-// Hard AI implementation (Optimal targeting and tool/spell usage)
+// ENHANCED Hard AI - Uses existing complex logic but with improved parameters
 const determineHardAIAction = (enemyHand, enemyField, playerField, enemyTools, enemySpells, enemyEnergy, maxFieldSize) => {
-  // Prioritize deployment of creatures first to establish battlefield presence
-  if (enemyField.length < maxFieldSize && enemyHand.length > 0) {
-    // Find best creature to deploy based on current battlefield state
-    let bestCreature = null;
-    let bestScore = -1;
-    
-    // Loop through hand to find the best creature to deploy
-    for (const creature of enemyHand) {
-      if (!creature.stats || !creature.battleStats) continue;
-      
-      // Check if we have enough energy
-      const energyCost = creature.battleStats.energyCost || 3;
-      if (enemyEnergy < energyCost) continue;
-      
-      // Calculate creature score based on current battlefield situation
-      let score = 0;
-      
-      // Base score from stats
-      const statTotal = Object.values(creature.stats).reduce((sum, val) => sum + val, 0);
-      score += statTotal * 2;
-      
-      // Higher score for balanced stats
-      const statVariance = calculateStatVariance(creature.stats);
-      score -= statVariance * 0.5; // Lower variance is better
-      
-      // Counter scoring based on player's field
-      if (playerField.length > 0) {
-        // Check if this creature counters any player creatures
-        for (const playerCreature of playerField) {
-          if (!playerCreature.stats) continue;
-          
-          // If player has high strength, value high magic
-          if (playerCreature.stats.strength > 7) {
-            score += creature.stats.magic * 3;
-          }
-          
-          // If player has high magic, value high speed
-          if (playerCreature.stats.magic > 7) {
-            score += creature.stats.speed * 3;
-          }
-          
-          // If player has high speed, value high stamina
-          if (playerCreature.stats.speed > 7) {
-            score += creature.stats.stamina * 3;
-          }
-        }
-      }
-      
-      // Higher score for higher rarity
-      switch (creature.rarity) {
-        case 'Legendary': score *= 1.3; break;
-        case 'Epic': score *= 1.2; break;
-        case 'Rare': score *= 1.1; break;
-        default: break;
-      }
-      
-      // Higher score for higher form
-      score *= (1 + creature.form * 0.2);
-      
-      // If this creature has better score than current best, update best
-      if (score > bestScore) {
-        bestScore = score;
-        bestCreature = creature;
-      }
-    }
-    
-    // If we found a good creature to deploy, deploy it
-    if (bestCreature) {
-      const energyCost = bestCreature.battleStats?.energyCost || 3;
-      return {
-        type: 'deploy',
-        creature: bestCreature,
-        energyCost: energyCost
-      };
-    }
-  }
-  
-  // If we have creatures on field and player has creatures, consider attacking
-  if (enemyField.length > 0 && playerField.length > 0) {
-    // Find best attack combination
-    let bestAttackScore = -1;
-    let bestAttacker = null;
-    let bestTarget = null;
-    
-    // Check all possible attack combinations
-    for (const attacker of enemyField) {
-      // Skip creatures that are defending
-      if (attacker.isDefending) continue;
-      
-      for (const target of playerField) {
-        // Calculate potential damage and effectiveness
-        let attackerStat, defenderStat;
-        let attackType;
-        
-        // Determine attack type based on attacker's stats
-        if ((attacker.battleStats?.physicalAttack || 0) >= (attacker.battleStats?.magicalAttack || 0)) {
-          attackType = 'physical';
-          attackerStat = attacker.battleStats?.physicalAttack || 0;
-          defenderStat = target.battleStats?.physicalDefense || 0;
-        } else {
-          attackType = 'magical';
-          attackerStat = attacker.battleStats?.magicalAttack || 0;
-          defenderStat = target.battleStats?.magicalDefense || 0;
-        }
-        
-        // Calculate raw damage
-        let damage = Math.max(1, attackerStat - defenderStat);
-        
-        // Apply effectiveness multiplier based on stat relationships
-        const effectiveness = calculateEffectiveness(attackType, attacker.stats, target.stats);
-        damage = Math.round(damage * effectiveness);
-        
-        // Calculate score for this attack
-        let attackScore = damage;
-        
-        // Bonus score if this would defeat the target
-        if (damage >= target.currentHealth) {
-          attackScore *= 3;
-        }
-        
-        // Bonus score for attacking high-threat targets
-        const targetThreat = calculateThreat(target);
-        attackScore += targetThreat;
-        
-        // If this attack has better score than current best, update best
-        if (attackScore > bestAttackScore) {
-          bestAttackScore = attackScore;
-          bestAttacker = attacker;
-          bestTarget = target;
-        }
-      }
-    }
-    
-    // Find best creature to defend with (if any)
-    let bestDefendScore = -1;
-    let bestDefender = null;
-    
-    // Check all creatures on field for defending
-    for (const creature of enemyField) {
-      // Skip creatures that are already defending
-      if (creature.isDefending) continue;
-      
-      // Calculate defend score based on creature's health and stats
-      let defendScore = 0;
-      
-      // Lower health percentage = higher defend score
-      const healthPercentage = creature.currentHealth / creature.battleStats.maxHealth;
-      defendScore += (1 - healthPercentage) * 100;
-      
-      // Higher defend score for creatures with high defense stats
-      defendScore += (creature.battleStats.physicalDefense + creature.battleStats.magicalDefense) * 0.5;
-      
-      // Lower defend score for creatures with high attack stats
-      defendScore -= (creature.battleStats.physicalAttack + creature.battleStats.magicalAttack) * 0.2;
-      
-      // If this creature has better defend score than current best, update best
-      if (defendScore > bestDefendScore) {
-        bestDefendScore = defendScore;
-        bestDefender = creature;
-      }
-    }
-    
-    // Now decide whether to attack or defend based on scores
-    if (bestAttackScore > 0 && bestDefendScore > 0) {
-      // If the creature is below 25% health, prefer defending
-      if (bestDefender && bestDefender.currentHealth / bestDefender.battleStats.maxHealth < 0.25 && bestDefendScore > 50) {
-        return {
-          type: 'defend',
-          creature: bestDefender
-        };
-      }
-      
-      // Otherwise prefer attacking if it would defeat a target
-      if (bestAttacker && bestTarget && bestAttackScore > bestDefendScore * 1.2) {
-        return {
-          type: 'attack',
-          attacker: bestAttacker,
-          target: bestTarget
-        };
-      } else if (bestDefender) {
-        return {
-          type: 'defend',
-          creature: bestDefender
-        };
-      }
-    } else if (bestAttackScore > 0) {
-      // Only attack option is viable
-      return {
-        type: 'attack',
-        attacker: bestAttacker,
-        target: bestTarget
-      };
-    } else if (bestDefendScore > 0) {
-      // Only defend option is viable
-      return {
-        type: 'defend',
-        creature: bestDefender
-      };
-    }
-  }
-  
-  // If all else fails, end turn
-  return { type: 'endTurn' };
-};
-
-// Expert AI implementation (Perfect decision making with look-ahead)
-const determineExpertAIAction = (enemyHand, enemyField, playerField, enemyTools, enemySpells, enemyEnergy, maxFieldSize) => {
-  // The expert AI uses the same logic as the hard AI but with improved parameters
-  // and simulation-based decision making (looking ahead to see best outcome)
-  
-  // First, check if there's an opportunity to end the game this turn
+  // Use the existing hard AI logic from the original file but with enhanced aggression
   const gameEndingMove = findGameEndingMove(enemyField, playerField);
   if (gameEndingMove) {
     return gameEndingMove;
   }
   
-  // Next, prioritize optimal deployment to counter player field
+  // More aggressive deployment strategy
   if (enemyField.length < maxFieldSize && enemyHand.length > 0) {
     const deployMove = findOptimalDeployment(enemyHand, enemyField, playerField, enemyEnergy);
-    if (deployMove) {
+    if (deployMove && enemyField.length < 3) { // Only deploy if we have few creatures
       return deployMove;
     }
   }
   
-  // Find the most optimal attack sequence (may involve multiple attacks)
+  // Prioritize attacking over deploying
   if (enemyField.length > 0 && playerField.length > 0) {
     const attackMove = findOptimalAttackSequence(enemyField, playerField);
     if (attackMove) {
@@ -444,7 +729,15 @@ const determineExpertAIAction = (enemyHand, enemyField, playerField, enemyTools,
     }
   }
   
-  // Consider defensive moves if attacks aren't optimal
+  // Deploy if we couldn't attack
+  if (enemyField.length < maxFieldSize && enemyHand.length > 0) {
+    const deployMove = findOptimalDeployment(enemyHand, enemyField, playerField, enemyEnergy);
+    if (deployMove) {
+      return deployMove;
+    }
+  }
+  
+  // Defend as last resort
   if (enemyField.length > 0) {
     const defendMove = findOptimalDefenseMove(enemyField, playerField);
     if (defendMove) {
@@ -452,344 +745,140 @@ const determineExpertAIAction = (enemyHand, enemyField, playerField, enemyTools,
     }
   }
   
-  // If no good moves, end turn
   return { type: 'endTurn' };
 };
 
-// Helper functions for AI decision making
-
-// Calculate variance of stats (used by hard AI for balanced stat preference)
-function calculateStatVariance(stats) {
-  if (!stats) return 0;
+// ENHANCED Expert AI - Maximum intelligence with multi-action capability
+const determineExpertAIAction = (enemyHand, enemyField, playerField, enemyTools, enemySpells, enemyEnergy, maxFieldSize) => {
+  // Expert AI uses the multi-action planning system primarily
+  const actionPlan = planOptimalActions('expert', enemyHand, enemyField, playerField, enemyEnergy, maxFieldSize, {
+    multiActionChance: 0.9,
+    aggressionLevel: 0.85
+  });
   
-  const values = Object.values(stats);
-  const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-  const squaredDiffs = values.map(val => (val - mean) ** 2);
-  const variance = squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
-  
-  return variance;
-}
-
-// Calculate effectiveness multiplier based on stats for AI decision making
-function calculateEffectiveness(attackType, attackerStats, defenderStats) {
-  if (!attackerStats || !defenderStats) return 1.0;
-  
-  // Rock-Paper-Scissors relationships:
-  // Strength > Stamina > Speed > Magic > Energy > Strength
-  
-  if (attackType === 'physical') {
-    // Physical attacks are based on Strength
-    if (defenderStats.stamina > defenderStats.energy) {
-      // Strong against stamina-focused defenders
-      return 1.5;
-    } else if (defenderStats.magic > defenderStats.stamina) {
-      // Weak against magic-focused defenders
-      return 0.75;
-    }
-  } else {
-    // Magical attacks are based on Magic
-    if (defenderStats.speed > defenderStats.strength) {
-      // Strong against speed-focused defenders
-      return 1.5;
-    } else if (defenderStats.energy > defenderStats.magic) {
-      // Weak against energy-focused defenders
-      return 0.75;
-    }
+  if (actionPlan && actionPlan.length > 0) {
+    return actionPlan[0];
   }
   
-  // Default: normal effectiveness
-  return 1.0;
-}
+  // Fallback to hard AI logic
+  return determineHardAIAction(enemyHand, enemyField, playerField, enemyTools, enemySpells, enemyEnergy, maxFieldSize);
+};
 
-// Calculate threat level of a creature (for AI targeting decision)
-function calculateThreat(creature) {
-  if (!creature.battleStats || !creature.stats) return 0;
-  
-  let threat = 0;
-  
-  // Base threat from attack stats
-  threat += (creature.battleStats.physicalAttack || 0) * 1.2;
-  threat += (creature.battleStats.magicalAttack || 0) * 1.2;
-  
-  // Additional threat from creature's form
-  threat += (creature.form || 0) * 10;
-  
-  // Additional threat from rarity
-  switch (creature.rarity) {
-    case 'Legendary': threat += 30; break;
-    case 'Epic': threat += 20; break;
-    case 'Rare': threat += 10; break;
-    default: break;
-  }
-  
-  // Additional threat from specialty stats
-  if (creature.specialty_stats && creature.specialty_stats.length > 0) {
-    for (const stat of creature.specialty_stats) {
-      threat += creature.stats[stat] * 3;
-    }
-  }
-  
-  return threat;
-}
+// EXISTING HELPER FUNCTIONS (Enhanced versions of the original functions)
 
-// Expert AI helper functions
+// Enhanced game ending move detection
 function findGameEndingMove(enemyField, playerField) {
-  // Check if there's a way to defeat all player creatures this turn
-  if (playerField.length === 0) {
-    return null; // Already won
-  }
+  if (playerField.length === 0) return null;
   
-  // If there's only one player creature and we can defeat it
-  if (playerField.length === 1) {
-    const target = playerField[0];
+  // Calculate if we can defeat all remaining player creatures
+  let totalPlayerHealth = playerField.reduce((sum, creature) => sum + creature.currentHealth, 0);
+  let totalAvailableDamage = 0;
+  
+  enemyField.forEach(attacker => {
+    if (!attacker.isDefending) {
+      const attackPower = Math.max(
+        attacker.battleStats?.physicalAttack || 0,
+        attacker.battleStats?.magicalAttack || 0
+      );
+      totalAvailableDamage += attackPower;
+    }
+  });
+  
+  // If we can potentially defeat all enemies, target the weakest first
+  if (totalAvailableDamage >= totalPlayerHealth * 0.8) { // 80% chance threshold
+    const weakestEnemy = playerField.reduce((weakest, current) => {
+      if (!weakest) return current;
+      return current.currentHealth < weakest.currentHealth ? current : weakest;
+    }, null);
     
-    // Find creature that can defeat the target
-    for (const attacker of enemyField) {
-      if (attacker.isDefending) continue;
-      
-      // Calculate potential damage
-      let attackValue, defenseValue;
-      
-      if ((attacker.battleStats?.physicalAttack || 0) >= (attacker.battleStats?.magicalAttack || 0)) {
-        attackValue = attacker.battleStats?.physicalAttack || 0;
-        defenseValue = target.battleStats?.physicalDefense || 0;
-      } else {
-        attackValue = attacker.battleStats?.magicalAttack || 0;
-        defenseValue = target.battleStats?.magicalDefense || 0;
-      }
-      
-      // Calculate raw damage
-      const damage = Math.max(1, attackValue - defenseValue);
-      
-      // If this would defeat the target, return attack move
-      if (damage >= target.currentHealth) {
-        return {
-          type: 'attack',
-          attacker: attacker,
-          target: target
-        };
-      }
+    const bestAttacker = enemyField.find(attacker => !attacker.isDefending);
+    
+    if (bestAttacker && weakestEnemy) {
+      return {
+        type: 'attack',
+        attacker: bestAttacker,
+        target: weakestEnemy,
+        energyCost: 2
+      };
     }
   }
   
   return null;
 }
 
+// Enhanced deployment optimization
 function findOptimalDeployment(enemyHand, enemyField, playerField, enemyEnergy) {
-  // Similar to hard AI but with improved parameters
-  let bestCreature = null;
-  let bestScore = -1;
-  
-  for (const creature of enemyHand) {
-    if (!creature.stats || !creature.battleStats) continue;
-    
-    // Check if we have enough energy
-    const energyCost = creature.battleStats.energyCost || 3;
-    if (enemyEnergy < energyCost) continue;
-    
-    // Calculate score for this creature
-    let score = 0;
-    
-    // Base score from stats
-    const statTotal = Object.values(creature.stats).reduce((sum, val) => sum + val, 0);
-    score += statTotal * 3;
-    
-    // Higher score for balanced stats
-    const statVariance = calculateStatVariance(creature.stats);
-    score -= statVariance * 0.8;
-    
-    // Context-aware counter selection
-    if (playerField.length > 0) {
-      // Calculate counter score for each player creature
-      for (const playerCreature of playerField) {
-        if (!playerCreature.stats) continue;
-        
-        // Expert counter scoring
-        const counterScore = calculateCounterScore(creature.stats, playerCreature.stats);
-        score += counterScore * 5;
-      }
-    }
-    
-    // Rarity and form bonuses
-    switch (creature.rarity) {
-      case 'Legendary': score *= 1.4; break;
-      case 'Epic': score *= 1.3; break;
-      case 'Rare': score *= 1.2; break;
-      default: break;
-    }
-    
-    score *= (1 + creature.form * 0.3);
-    
-    // Update best creature if this one is better
-    if (score > bestScore) {
-      bestScore = score;
-      bestCreature = creature;
-    }
-  }
-  
-  if (bestCreature) {
-    const energyCost = bestCreature.battleStats?.energyCost || 3;
-    return {
-      type: 'deploy',
-      creature: bestCreature,
-      energyCost: energyCost
-    };
-  }
-  
-  return null;
+  return selectBestCreatureForDeployment(enemyHand, playerField, enemyEnergy, 'hard');
 }
 
-function calculateCounterScore(attackerStats, defenderStats) {
-  // Calculate how well attacker counters defender
-  let score = 0;
-  
-  // Strength counters stamina
-  if (attackerStats.strength > 7 && defenderStats.stamina > 7) {
-    score += 10;
-  }
-  
-  // Stamina counters speed
-  if (attackerStats.stamina > 7 && defenderStats.speed > 7) {
-    score += 10;
-  }
-  
-  // Speed counters magic
-  if (attackerStats.speed > 7 && defenderStats.magic > 7) {
-    score += 10;
-  }
-  
-  // Magic counters energy
-  if (attackerStats.magic > 7 && defenderStats.energy > 7) {
-    score += 10;
-  }
-  
-  // Energy counters strength
-  if (attackerStats.energy > 7 && defenderStats.strength > 7) {
-    score += 10;
-  }
-  
-  return score;
-}
-
+// Enhanced attack sequence optimization
 function findOptimalAttackSequence(enemyField, playerField) {
-  // Find most optimal attack
-  let bestAttackScore = -1;
+  const availableAttackers = enemyField.filter(creature => !creature.isDefending);
+  if (availableAttackers.length === 0 || playerField.length === 0) return null;
+  
   let bestAttacker = null;
   let bestTarget = null;
+  let bestScore = -1;
   
-  // Check all possible attack combinations
-  for (const attacker of enemyField) {
-    if (attacker.isDefending) continue;
-    
-    for (const target of playerField) {
-      // Calculate expected damage
-      let attackType, attackValue, defenseValue, effectiveness;
-      
-      if ((attacker.battleStats?.physicalAttack || 0) >= (attacker.battleStats?.magicalAttack || 0)) {
-        attackType = 'physical';
-        attackValue = attacker.battleStats?.physicalAttack || 0;
-        defenseValue = target.battleStats?.physicalDefense || 0;
-      } else {
-        attackType = 'magical';
-        attackValue = attacker.battleStats?.magicalAttack || 0;
-        defenseValue = target.battleStats?.magicalDefense || 0;
-      }
-      
-      effectiveness = calculateEffectiveness(attackType, attacker.stats, target.stats);
-      
-      // Calculate raw damage
-      let damage = Math.max(1, attackValue - defenseValue);
-      damage = Math.round(damage * effectiveness);
-      
-      // Calculate attack score
-      let attackScore = damage * 2;
-      
-      // Very high bonus for defeating a creature
-      if (damage >= target.currentHealth) {
-        attackScore *= 5;
-      }
-      
-      // Add threat score
-      const targetThreat = calculateThreat(target);
-      attackScore += targetThreat * 1.5;
-      
-      // Update best attack if this one is better
-      if (attackScore > bestAttackScore) {
-        bestAttackScore = attackScore;
+  availableAttackers.forEach(attacker => {
+    playerField.forEach(target => {
+      const score = calculateTargetScore(attacker, target);
+      if (score > bestScore) {
+        bestScore = score;
         bestAttacker = attacker;
         bestTarget = target;
       }
-    }
-  }
+    });
+  });
   
   if (bestAttacker && bestTarget) {
     return {
       type: 'attack',
       attacker: bestAttacker,
-      target: bestTarget
+      target: bestTarget,
+      energyCost: 2
     };
   }
   
   return null;
 }
 
+// Enhanced defense optimization
 function findOptimalDefenseMove(enemyField, playerField) {
-  // Calculate board threat from player field
-  let totalPlayerThreat = 0;
-  for (const creature of playerField) {
-    totalPlayerThreat += calculateThreat(creature);
-  }
+  const vulnerableCreatures = enemyField.filter(creature => {
+    if (creature.isDefending) return false;
+    
+    const healthRatio = creature.currentHealth / (creature.battleStats?.maxHealth || 50);
+    const isValuable = creature.rarity === 'Legendary' || creature.rarity === 'Epic';
+    
+    return healthRatio < 0.4 || (isValuable && healthRatio < 0.6);
+  });
   
-  // Find best creature to defend
-  let bestDefendScore = -1;
-  let bestDefender = null;
-  
-  for (const creature of enemyField) {
-    if (creature.isDefending) continue;
+  if (vulnerableCreatures.length > 0) {
+    // Defend the most valuable/vulnerable creature
+    const bestDefender = vulnerableCreatures.reduce((best, current) => {
+      if (!best) return current;
+      
+      const bestValue = getRarityValue(best.rarity) + (best.form || 0);
+      const currentValue = getRarityValue(current.rarity) + (current.form || 0);
+      
+      const bestHealthRatio = best.currentHealth / (best.battleStats?.maxHealth || 50);
+      const currentHealthRatio = current.currentHealth / (current.battleStats?.maxHealth || 50);
+      
+      // Prioritize by value first, then by vulnerability
+      if (currentValue > bestValue) return current;
+      if (currentValue === bestValue && currentHealthRatio < bestHealthRatio) return current;
+      
+      return best;
+    }, null);
     
-    // Calculate defend score
-    let defendScore = 0;
-    
-    // Health percentage factor
-    const healthPercentage = creature.currentHealth / creature.battleStats.maxHealth;
-    defendScore += (1 - healthPercentage) * 120;
-    
-    // Defense stats factor
-    defendScore += (creature.battleStats.physicalDefense + creature.battleStats.magicalDefense) * 0.8;
-    
-    // Attack stats factor (we don't want to lose high-attack creatures)
-    const attackPower = Math.max(
-      creature.battleStats.physicalAttack || 0,
-      creature.battleStats.magicalAttack || 0
-    );
-    defendScore += attackPower * 0.6;
-    
-    // Rarity and form factors
-    switch (creature.rarity) {
-      case 'Legendary': defendScore *= 1.3; break;
-      case 'Epic': defendScore *= 1.2; break;
-      case 'Rare': defendScore *= 1.1; break;
-      default: break;
+    if (bestDefender) {
+      return {
+        type: 'defend',
+        creature: bestDefender,
+        energyCost: 1
+      };
     }
-    
-    defendScore *= (1 + creature.form * 0.2);
-    
-    // Scale defend score by total player threat
-    defendScore *= (1 + totalPlayerThreat / 100);
-    
-    // Update best defender if this one is better
-    if (defendScore > bestDefendScore) {
-      bestDefendScore = defendScore;
-      bestDefender = creature;
-    }
-  }
-  
-  // Only defend if score is high enough
-  if (bestDefender && bestDefendScore > 50) {
-    return {
-      type: 'defend',
-      creature: bestDefender
-    };
   }
   
   return null;
