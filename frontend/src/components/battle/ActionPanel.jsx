@@ -1,4 +1,4 @@
-// src/components/battle/ActionPanel.jsx - Enhanced Compact Version
+// src/components/battle/ActionPanel.jsx - Enhanced with full End Turn text
 import React, { useState } from 'react';
 import ToolSpellModal from './ToolSpellModal';
 
@@ -83,12 +83,13 @@ const ActionPanel = ({
       });
     }
     
+    // FIXED: Always show full "End Turn" text for clarity
     configs.push({
       type: 'end-turn',
       label: 'End Turn',
       icon: '⏭️',
       color: 'end-turn',
-      shortLabel: 'End',
+      shortLabel: 'End Turn', // FIXED: Use full text even in short label
       action: () => onAction({ type: 'endTurn' })
     });
     
