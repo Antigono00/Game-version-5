@@ -1,10 +1,12 @@
-// src/components/battle/PlayerHand.jsx - Enhanced with collapsible functionality
+// src/components/battle/PlayerHand.jsx - Enhanced with card names and hover preview
 import React, { useState, useRef, useEffect } from 'react';
 import CreatureCard from './CreatureCard';
 
 const PlayerHand = ({ hand, onSelectCard, disabled, selectedCreature }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [hoveredCard, setHoveredCard] = useState(null);
+  const [tappedCard, setTappedCard] = useState(null);
   const handRef = useRef(null);
   
   // Detect touch device
@@ -33,10 +35,28 @@ const PlayerHand = ({ hand, onSelectCard, disabled, selectedCreature }) => {
     }
   }, [isExpanded, isTouchDevice]);
   
+  // Clear tapped card when clicking outside
+  useEffect(() => {
+    if (isTouchDevice && tappedCard) {
+      const handleClickOutside = (event) => {
+        const clickedElement = event.target;
+        const cardWrapper = clickedElement.closest('.hand-card-wrapper');
+        
+        if (!cardWrapper || cardWrapper.dataset.creatureId !== tappedCard) {
+          setTappedCard(null);
+        }
+      };
+      
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [tappedCard, isTouchDevice]);
+  
   // Toggle expansion on tap for touch devices
   const handleHandClick = (e) => {
-    if (isTouchDevice && e.target === handRef.current || e.target.classList.contains('hand-title')) {
+    if (isTouchDevice && (e.target === handRef.current || e.target.classList.contains('hand-title'))) {
       setIsExpanded(!isExpanded);
+      setTappedCard(null); // Clear any tapped card when toggling
     }
   };
   
@@ -51,11 +71,39 @@ const PlayerHand = ({ hand, onSelectCard, disabled, selectedCreature }) => {
     }
   };
   
+  // Handle card tap on touch devices
+  const handleCardTap = (e, creatureId) => {
+    if (isTouchDevice) {
+      e.stopPropagation();
+      
+      if (tappedCard === creatureId) {
+        // If already tapped, untap
+        setTappedCard(null);
+      } else {
+        // Tap to preview full card
+        setTappedCard(creatureId);
+      }
+    }
+  };
+  
+  // Handle card hover on desktop
+  const handleCardHover = (creatureId) => {
+    if (!isTouchDevice) {
+      setHoveredCard(creatureId);
+    }
+  };
+  
+  const handleCardLeave = () => {
+    if (!isTouchDevice) {
+      setHoveredCard(null);
+    }
+  };
+  
   // Calculate visible card count based on hand size
   const getVisibleCardCount = () => {
     if (isExpanded) return hand.length;
-    // Show partial cards when collapsed
-    return Math.min(3, hand.length);
+    // Show all cards when collapsed (just names)
+    return hand.length;
   };
   
   return (
@@ -82,13 +130,15 @@ const PlayerHand = ({ hand, onSelectCard, disabled, selectedCreature }) => {
               key={creature.id}
               className={`hand-card-wrapper ${
                 !isExpanded && index >= getVisibleCardCount() ? 'hidden-card' : ''
-              }`}
+              } ${tappedCard === creature.id ? 'tapped' : ''}`}
+              data-creature-id={creature.id}
               style={{
-                transform: !isExpanded ? `translateY(${index * 10}px)` : 'none',
                 zIndex: hand.length - index,
-                opacity: !isExpanded && index >= getVisibleCardCount() ? 0 : 1,
                 transition: 'all 0.3s ease'
               }}
+              onMouseEnter={() => handleCardHover(creature.id)}
+              onMouseLeave={handleCardLeave}
+              onClick={(e) => handleCardTap(e, creature.id)}
             >
               <CreatureCard
                 creature={creature}
@@ -98,17 +148,19 @@ const PlayerHand = ({ hand, onSelectCard, disabled, selectedCreature }) => {
                 onClick={() => handleCardSelect(creature)}
                 size="small"
               />
+              
+              {/* Card name label for collapsed state */}
+              {!isExpanded && (
+                <div className="card-name-label">
+                  {creature.species_name || 'Unknown'}
+                </div>
+              )}
             </div>
           ))
         )}
       </div>
       
-      {/* Visual indicator for collapsed state */}
-      {!isExpanded && hand.length > getVisibleCardCount() && (
-        <div className="more-cards-indicator">
-          +{hand.length - getVisibleCardCount()} more
-        </div>
-      )}
+      {/* No more cards indicator needed since we show all names */}
     </div>
   );
 };
