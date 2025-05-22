@@ -1,4 +1,4 @@
-/* src/battle.css - ENHANCED FOR MAXIMUM DIFFICULTY AND VISUAL IMPACT */
+/* src/battle.css - ENHANCED FOR MAXIMUM DIFFICULTY AND VISUAL IMPACT WITH REWARDS SYSTEM */
 
 /* Battle game overlay container */
 .battle-game-overlay {
@@ -1418,6 +1418,218 @@
   line-height: 1.4;
 }
 
+/* ====== REWARDS SYSTEM STYLES ====== */
+
+/* Reward summary styles */
+.reward-summary {
+  display: flex;
+  justify-content: space-around;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.reward-item {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(76, 175, 80, 0.1));
+  border-radius: 10px;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  min-width: 120px;
+  transition: transform 0.3s ease;
+}
+
+.reward-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+}
+
+.reward-icon {
+  font-size: 24px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.reward-details {
+  text-align: center;
+}
+
+.reward-amount {
+  font-size: 20px;
+  font-weight: bold;
+  color: #4CAF50;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.reward-type {
+  font-size: 12px;
+  color: #ccc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Reward items styles */
+.reward-items {
+  margin-top: 20px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1));
+  border-radius: 10px;
+  padding: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.reward-items h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #FFD700;
+  font-size: 16px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reward-item-card {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.2));
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.reward-item-card:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  transform: translateX(5px);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.reward-item-card .item-icon {
+  font-size: 20px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.item-info {
+  flex: 1;
+}
+
+.item-name {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 2px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.item-rarity {
+  font-size: 11px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Performance bonuses styles */
+.performance-bonuses {
+  margin-top: 20px;
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 193, 7, 0.05));
+  border-radius: 10px;
+  padding: 15px;
+  border-left: 4px solid #FFC107;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.performance-bonuses h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  color: #FFC107;
+  font-size: 16px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.bonus-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bonus-item {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1));
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #fff;
+  border-left: 3px solid #FFC107;
+  animation: bonus-item-appear 0.5s ease-out;
+}
+
+@keyframes bonus-item-appear {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Enhanced victory/defeat styling */
+.battle-result.victory .result-header {
+  background: linear-gradient(135deg, #4CAF50, #66BB6A);
+  position: relative;
+  overflow: hidden;
+}
+
+.battle-result.victory .result-header::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 50%, rgba(255, 255, 255, 0.3) 0%, transparent 50%);
+  animation: victory-sparkle 3s ease-in-out infinite;
+}
+
+@keyframes victory-sparkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
+.battle-result.defeat .result-header {
+  background: linear-gradient(135deg, #F44336, #EF5350);
+  position: relative;
+}
+
+.battle-result.defeat .result-header::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 30%, rgba(0, 0, 0, 0.2) 50%, transparent 70%);
+  animation: defeat-shadow 2s ease-in-out infinite;
+}
+
+@keyframes defeat-shadow {
+  0%, 100% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+}
+
 /* Mobile adjustments - ENHANCED */
 @media (max-width: 768px) {
   .battle-game-overlay {
@@ -1536,5 +1748,38 @@
   
   .tab {
     padding: 10px;
+  }
+  
+  /* Mobile responsive adjustments for rewards */
+  .reward-summary {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .reward-item {
+    min-width: 200px;
+    justify-content: center;
+  }
+  
+  .items-list {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  
+  .reward-item-card {
+    padding: 10px;
+  }
+  
+  .reward-item-card .item-name {
+    font-size: 12px;
+  }
+  
+  .item-rarity {
+    font-size: 10px;
+  }
+  
+  .bonus-item {
+    font-size: 12px;
+    padding: 6px 10px;
   }
 }
