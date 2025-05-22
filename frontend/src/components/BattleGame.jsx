@@ -1,4 +1,4 @@
-// src/components/BattleGame.jsx - COMPLETE ENHANCED VERSION WITH ALL ORIGINAL FUNCTIONALITY + ENEMY ITEMS
+// src/components/BattleGame.jsx - COMPLETE ENHANCED VERSION WITH FIXED AI TURN COMPLETION
 import React, { useState, useEffect, useContext, useCallback, useReducer } from 'react';
 import { GameContext } from '../context/GameContext';
 import { useRadixConnect } from '../context/RadixConnectContext';
@@ -2148,7 +2148,7 @@ const BattleGame = ({ onClose }) => {
   }, [creatureNfts, toolNfts, spellNfts, difficulty, addNotification, addToBattleLog]);
   
   // ========== ENHANCED ENEMY AI ==========
-  // COMPLETELY REWRITTEN: Handle multi-action enemy turns with custom AI
+  // FIXED: Handle multi-action enemy turns with proper turn completion
   const handleEnemyTurn = useCallback(() => {
     console.log("ENHANCED Enemy turn processing. Energy:", enemyEnergy, "Hand:", enemyHand.length, "Field:", enemyField.length);
     
@@ -2161,7 +2161,9 @@ const BattleGame = ({ onClose }) => {
     if (canMultiAction && enemyEnergy >= 4) {
       // Execute multiple actions in one turn
       const actionSequence = planEnemyActionSequence();
-      if (actionSequence.length > 1) {
+      
+      // FIXED: Handle both single and multiple actions through the same sequence system
+      if (actionSequence.length >= 1) { // CHANGED: from > 1 to >= 1
         console.log(`AI executing ${actionSequence.length} actions:`, actionSequence.map(a => a.type));
         
         // Execute each action with delay for visual feedback
@@ -2170,7 +2172,7 @@ const BattleGame = ({ onClose }) => {
       }
     }
     
-    // Fall back to single action using our ENHANCED custom AI
+    // Fall back to single action using our ENHANCED custom AI ONLY if planning failed
     let aiAction;
     
     // Use our custom AI functions based on difficulty with enemy items
@@ -2191,7 +2193,14 @@ const BattleGame = ({ onClose }) => {
         aiAction = determineEasyAIAction(enemyHand, enemyField, playerField, enemyEnergy, getDifficultySettings(difficulty).maxFieldSize);
     }
     
+    // FIXED: Execute single action and then finish turn
     executeSingleAIAction(aiAction);
+    
+    // FIXED: Always finish the turn after executing a single action
+    setTimeout(() => {
+      finishEnemyTurn();
+    }, 1000);
+    
   }, [
     difficulty, 
     enemyHand, 
@@ -2284,10 +2293,11 @@ const BattleGame = ({ onClose }) => {
     return actions;
   }, [enemyEnergy, enemyHand, enemyField, playerField, difficulty]);
   
-  // NEW: Execute a sequence of AI actions with timing
+  // FIXED: Execute a sequence of AI actions with proper turn completion
   const executeActionSequence = useCallback((actionSequence, index) => {
     if (index >= actionSequence.length) {
       // Sequence complete - finish the turn
+      console.log("Action sequence complete, finishing turn");
       setTimeout(() => finishEnemyTurn(), 500);
       return;
     }
@@ -2401,7 +2411,7 @@ const BattleGame = ({ onClose }) => {
     }
   }, [enemyEnergy, addToBattleLog]);
   
-  // NEW: Finish the enemy turn after all actions
+  // FIXED: Finish the enemy turn after all actions
   const finishEnemyTurn = useCallback(() => {
     console.log("Finishing enemy turn...");
     
