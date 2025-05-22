@@ -1,5 +1,5 @@
-// src/components/battle/BattleResult.jsx - COMPLETE WITH REWARDS SYSTEM
-import React from 'react';
+// src/components/battle/BattleResult.jsx - FIXED VERSION WITH STABLE REWARDS
+import React, { useMemo } from 'react';
 
 const BattleResult = ({ result, onPlayAgain, onClose, stats, difficulty }) => {
   const isVictory = result === 'victory';
@@ -14,9 +14,30 @@ const BattleResult = ({ result, onPlayAgain, onClose, stats, difficulty }) => {
     }
   };
   
-  // Calculate rewards based on performance and difficulty
-  const calculateRewards = () => {
+  // FIXED: Use useMemo to generate rewards only once when component mounts
+  const rewards = useMemo(() => {
     if (!isVictory) return null;
+    
+    // Create a seeded random number generator for consistency
+    let seed = 12345; // Base seed
+    if (stats) {
+      seed += stats.turns * 1000;
+      seed += stats.remainingCreatures * 100;
+      seed += stats.enemiesDefeated * 10;
+    }
+    seed += difficulty.charCodeAt(0) * 1000000; // Add difficulty to seed
+    
+    // Simple seeded random function for consistent results
+    const seededRandom = (seed) => {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+    
+    let currentSeed = seed;
+    const nextRandom = () => {
+      currentSeed += 1;
+      return seededRandom(currentSeed);
+    };
     
     const baseReward = {
       experience: 100,
@@ -53,102 +74,120 @@ const BattleResult = ({ result, onPlayAgain, onClose, stats, difficulty }) => {
     else if (defeatRatio >= 0.7) performanceMultiplier += 0.2;
     else if (defeatRatio >= 0.5) performanceMultiplier += 0.1;
     
+    // Generate reward items with seeded randomization
+    const generateRewardItems = (difficulty, performanceMultiplier, randomFunc) => {
+      const items = [];
+      
+      // Base chance for items
+      const itemChances = {
+        easy: 0.3,
+        medium: 0.5,
+        hard: 0.7,
+        expert: 0.9
+      };
+      
+      const baseChance = itemChances[difficulty] || 0.3;
+      const adjustedChance = Math.min(0.95, baseChance * performanceMultiplier);
+      
+      // Tool rewards
+      if (randomFunc() < adjustedChance) {
+        const toolTypes = ['energy', 'strength', 'magic', 'stamina', 'speed'];
+        const toolEffects = ['Surge', 'Shield', 'Echo', 'Drain', 'Charge'];
+        
+        const randomType = toolTypes[Math.floor(randomFunc() * toolTypes.length)];
+        const randomEffect = toolEffects[Math.floor(randomFunc() * toolEffects.length)];
+        
+        items.push({
+          type: 'tool',
+          name: `${randomEffect} ${randomType.charAt(0).toUpperCase() + randomType.slice(1)} Tool`,
+          rarity: getRandomRarity(difficulty, randomFunc),
+          tool_type: randomType,
+          tool_effect: randomEffect
+        });
+      }
+      
+      // Spell rewards (higher difficulty only)
+      if ((difficulty === 'hard' || difficulty === 'expert') && randomFunc() < adjustedChance * 0.7) {
+        const spellTypes = ['energy', 'strength', 'magic', 'stamina', 'speed'];
+        const spellEffects = ['Surge', 'Shield', 'Echo', 'Drain', 'Charge'];
+        
+        const randomType = spellTypes[Math.floor(randomFunc() * spellTypes.length)];
+        const randomEffect = spellEffects[Math.floor(randomFunc() * spellEffects.length)];
+        
+        items.push({
+          type: 'spell',
+          name: `${randomEffect} ${randomType.charAt(0).toUpperCase() + randomType.slice(1)} Spell`,
+          rarity: getRandomRarity(difficulty, randomFunc),
+          spell_type: randomType,
+          spell_effect: randomEffect
+        });
+      }
+      
+      // Rare creature enhancement items (expert difficulty only)
+      if (difficulty === 'expert' && randomFunc() < 0.3) {
+        items.push({
+          type: 'enhancement',
+          name: 'Evolution Crystal',
+          rarity: 'Epic',
+          description: 'Can be used to enhance a creature\'s form'
+        });
+      }
+      
+      return items;
+    };
+    
+    // Get random rarity based on difficulty with seeded randomization
+    const getRandomRarity = (difficulty, randomFunc) => {
+      const rarityChances = {
+        easy: { Common: 0.7, Rare: 0.25, Epic: 0.05, Legendary: 0 },
+        medium: { Common: 0.5, Rare: 0.35, Epic: 0.13, Legendary: 0.02 },
+        hard: { Common: 0.3, Rare: 0.4, Epic: 0.25, Legendary: 0.05 },
+        expert: { Common: 0.1, Rare: 0.3, Epic: 0.45, Legendary: 0.15 }
+      };
+      
+      const chances = rarityChances[difficulty] || rarityChances.easy;
+      const random = randomFunc();
+      let cumulative = 0;
+      
+      for (const [rarity, chance] of Object.entries(chances)) {
+        cumulative += chance;
+        if (random <= cumulative) {
+          return rarity;
+        }
+      }
+      
+      return 'Common';
+    };
+    
     // Calculate final rewards
     const finalReward = {
       experience: Math.round(baseReward.experience * multiplier * performanceMultiplier),
       currency: Math.round(baseReward.currency * multiplier * performanceMultiplier),
-      items: generateRewardItems(difficulty, performanceMultiplier)
+      items: generateRewardItems(difficulty, performanceMultiplier, nextRandom)
     };
     
     return finalReward;
-  };
+  }, [isVictory, difficulty, stats]); // Only recalculate if these props change
   
-  // Generate reward items based on difficulty and performance
-  const generateRewardItems = (difficulty, performanceMultiplier) => {
-    const items = [];
+  // FIXED: Generate performance bonuses list only once
+  const performanceBonuses = useMemo(() => {
+    const bonuses = [];
     
-    // Base chance for items
-    const itemChances = {
-      easy: 0.3,
-      medium: 0.5,
-      hard: 0.7,
-      expert: 0.9
-    };
-    
-    const baseChance = itemChances[difficulty] || 0.3;
-    const adjustedChance = Math.min(0.95, baseChance * performanceMultiplier);
-    
-    // Tool rewards
-    if (Math.random() < adjustedChance) {
-      const toolTypes = ['energy', 'strength', 'magic', 'stamina', 'speed'];
-      const toolEffects = ['Surge', 'Shield', 'Echo', 'Drain', 'Charge'];
-      
-      const randomType = toolTypes[Math.floor(Math.random() * toolTypes.length)];
-      const randomEffect = toolEffects[Math.floor(Math.random() * toolEffects.length)];
-      
-      items.push({
-        type: 'tool',
-        name: `${randomEffect} ${randomType.charAt(0).toUpperCase() + randomType.slice(1)} Tool`,
-        rarity: getRandomRarity(difficulty),
-        tool_type: randomType,
-        tool_effect: randomEffect
-      });
+    if (stats.turns <= 5) {
+      bonuses.push({ icon: '🚀', text: 'Speed Demon: Finished in 5 turns or less!' });
+    }
+    if (stats.remainingCreatures >= 3) {
+      bonuses.push({ icon: '🛡️', text: 'Master Strategist: All creatures survived!' });
+    }
+    if (stats.enemiesDefeated >= 5) {
+      bonuses.push({ icon: '⚔️', text: 'Destroyer: Defeated 5 or more enemies!' });
+    }
+    if (difficulty === 'expert') {
+      bonuses.push({ icon: '👑', text: 'Elite Warrior: Conquered Expert difficulty!' });
     }
     
-    // Spell rewards (higher difficulty only)
-    if ((difficulty === 'hard' || difficulty === 'expert') && Math.random() < adjustedChance * 0.7) {
-      const spellTypes = ['energy', 'strength', 'magic', 'stamina', 'speed'];
-      const spellEffects = ['Surge', 'Shield', 'Echo', 'Drain', 'Charge'];
-      
-      const randomType = spellTypes[Math.floor(Math.random() * spellTypes.length)];
-      const randomEffect = spellEffects[Math.floor(Math.random() * spellEffects.length)];
-      
-      items.push({
-        type: 'spell',
-        name: `${randomEffect} ${randomType.charAt(0).toUpperCase() + randomType.slice(1)} Spell`,
-        rarity: getRandomRarity(difficulty),
-        spell_type: randomType,
-        spell_effect: randomEffect
-      });
-    }
-    
-    // Rare creature enhancement items (expert difficulty only)
-    if (difficulty === 'expert' && Math.random() < 0.3) {
-      items.push({
-        type: 'enhancement',
-        name: 'Evolution Crystal',
-        rarity: 'Epic',
-        description: 'Can be used to enhance a creature\'s form'
-      });
-    }
-    
-    return items;
-  };
-  
-  // Get random rarity based on difficulty
-  const getRandomRarity = (difficulty) => {
-    const rarityChances = {
-      easy: { Common: 0.7, Rare: 0.25, Epic: 0.05, Legendary: 0 },
-      medium: { Common: 0.5, Rare: 0.35, Epic: 0.13, Legendary: 0.02 },
-      hard: { Common: 0.3, Rare: 0.4, Epic: 0.25, Legendary: 0.05 },
-      expert: { Common: 0.1, Rare: 0.3, Epic: 0.45, Legendary: 0.15 }
-    };
-    
-    const chances = rarityChances[difficulty] || rarityChances.easy;
-    const random = Math.random();
-    let cumulative = 0;
-    
-    for (const [rarity, chance] of Object.entries(chances)) {
-      cumulative += chance;
-      if (random <= cumulative) {
-        return rarity;
-      }
-    }
-    
-    return 'Common';
-  };
-  
-  const rewards = calculateRewards();
+    return bonuses;
+  }, [stats, difficulty]);
   
   return (
     <div className={`battle-result ${isVictory ? 'victory' : 'defeat'}`}>
@@ -220,7 +259,7 @@ const BattleResult = ({ result, onPlayAgain, onClose, stats, difficulty }) => {
                   <h4>Items Received:</h4>
                   <div className="items-list">
                     {rewards.items.map((item, index) => (
-                      <div key={index} className="reward-item-card">
+                      <div key={`reward-item-${index}`} className="reward-item-card">
                         <div className="item-icon">
                           {item.type === 'tool' ? '🔧' : 
                            item.type === 'spell' ? '✨' : 
@@ -242,23 +281,18 @@ const BattleResult = ({ result, onPlayAgain, onClose, stats, difficulty }) => {
                 </div>
               )}
               
-              <div className="performance-bonuses">
-                <h4>Performance Analysis:</h4>
-                <div className="bonus-list">
-                  {stats.turns <= 5 && (
-                    <div className="bonus-item">🚀 Speed Demon: Finished in 5 turns or less!</div>
-                  )}
-                  {stats.remainingCreatures >= 3 && (
-                    <div className="bonus-item">🛡️ Master Strategist: All creatures survived!</div>
-                  )}
-                  {stats.enemiesDefeated >= 5 && (
-                    <div className="bonus-item">⚔️ Destroyer: Defeated 5 or more enemies!</div>
-                  )}
-                  {difficulty === 'expert' && (
-                    <div className="bonus-item">👑 Elite Warrior: Conquered Expert difficulty!</div>
-                  )}
+              {performanceBonuses.length > 0 && (
+                <div className="performance-bonuses">
+                  <h4>Performance Analysis:</h4>
+                  <div className="bonus-list">
+                    {performanceBonuses.map((bonus, index) => (
+                      <div key={`bonus-${index}`} className="bonus-item">
+                        {bonus.icon} {bonus.text}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
