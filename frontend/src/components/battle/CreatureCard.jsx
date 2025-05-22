@@ -1,4 +1,4 @@
-// src/components/battle/CreatureCard.jsx - IMAGE-FOCUSED VERSION
+// src/components/battle/CreatureCard.jsx - Fixed with better stat sizing
 import React, { useState } from 'react';
 import { getFormDescription } from '../../utils/creatureHelpers';
 import { getRarityColor } from '../../utils/uiHelpers';
@@ -11,17 +11,16 @@ const CreatureCard = ({
   onClick, 
   isSelected,
   isDefending,
-  activeEffects = []
+  activeEffects = [],
+  size = 'normal'
 }) => {
-  // Track image load state
   const [imageLoaded, setImageLoaded] = useState(true);
+  const [showDetailedStats, setShowDetailedStats] = useState(false);
   
-  // Guard against missing object
   if (!creature) {
     return <div className="creature-card error">Missing creature data</div>;
   }
   
-  // Get derived stats for display with default fallbacks
   const battleStats = creature.battleStats || {};
   const {
     maxHealth = 50,
@@ -29,50 +28,85 @@ const CreatureCard = ({
     magicalAttack = 10,
     physicalDefense = 5,
     magicalDefense = 5,
-    initiative = 10
+    initiative = 10,
+    criticalChance = 5,
+    dodgeChance = 3
   } = battleStats;
   
-  // Set current health with default
   const currentHealth = creature.currentHealth !== undefined ? 
     creature.currentHealth : maxHealth;
   
-  // Handle defensive stance visual indicator
   const cardClasses = [
     'creature-card',
     position,
     isActive ? 'active' : '',
     isSelected ? 'selected' : '',
     isDefending ? 'defending' : '',
+    size === 'small' ? 'small-card' : '',
+    showDetailedStats ? 'show-details' : ''
   ].filter(Boolean).join(' ');
   
-  // Calculate health percentage for health bar
   const healthPercentage = Math.max(0, Math.min(100, (currentHealth / maxHealth) * 100));
+  const healthStatus = healthPercentage <= 20 ? 'critical' : 
+                      healthPercentage <= 50 ? 'low' : 'normal';
   
-  // Determine which attack value to show prominently based on creature's strength
   const isPrimaryPhysical = physicalAttack >= magicalAttack;
-  
-  // Get the form for placeholder selection
   const form = creature.form || 0;
   
-  // Handle potential image errors
   const handleImageError = (e) => {
-    // Use a colored SVG background as fallback
     e.target.src = getPlaceholderForForm(form);
     setImageLoaded(false);
-    e.target.onerror = null; // Prevent infinite error loop
+    e.target.onerror = null;
+  };
+  
+  const handleCardClick = (e) => {
+    if (e.detail === 2) { // Double click
+      setShowDetailedStats(!showDetailedStats);
+    } else {
+      onClick && onClick();
+    }
+  };
+  
+  // Format stat value with icon - FIXED sizing
+  const formatStat = (icon, value, isPrimary = false) => {
+    return (
+      <div className={`mini-stat ${isPrimary ? 'primary' : ''}`} title={getStatTooltip(icon)}>
+        <span className="stat-icon">{icon}</span>
+        <span className="stat-value">{value}</span>
+      </div>
+    );
+  };
+  
+  const getStatTooltip = (icon) => {
+    const tooltips = {
+      '⚔️': 'Physical Attack',
+      '✨': 'Magical Attack',
+      '🛡️': 'Physical Defense',
+      '🔮': 'Magical Defense',
+      '⚡': 'Initiative',
+      '🎯': `Critical Chance: ${criticalChance}%`,
+      '💨': `Dodge Chance: ${dodgeChance}%`
+    };
+    return tooltips[icon] || '';
   };
   
   return (
-    <div className={cardClasses} onClick={onClick}>
-      {/* Card header - outside the image area */}
+    <div 
+      className={cardClasses} 
+      onClick={handleCardClick}
+      data-rarity={creature.rarity}
+    >
+      {/* Card header */}
       <div className="creature-card-header" style={{ 
         backgroundColor: getRarityColor(creature.rarity) + '99',
       }}>
-        <span className="creature-name">{creature.species_name || 'Unknown'}</span>
+        <span className="creature-name" title={creature.species_name}>
+          {creature.species_name || 'Unknown'}
+        </span>
         <span className="creature-form">{getFormDescription(form)}</span>
       </div>
 
-      {/* Enlarged image container - taking ~75% of card height */}
+      {/* Image container */}
       <div className="creature-image-container">
         <img 
           src={creature.image_url || getPlaceholderForForm(form)} 
@@ -103,34 +137,57 @@ const CreatureCard = ({
             🛡️
           </div>
         )}
+        
+        {/* Quick stats overlay (optional) */}
+        {showDetailedStats && (
+          <div className="detailed-stats-overlay">
+            <div className="stat-row">
+              <span>Crit: {criticalChance}%</span>
+              <span>Dodge: {dodgeChance}%</span>
+            </div>
+            <div className="stat-row">
+              <span>Energy Cost: {creature.battleStats?.energyCost || 3}</span>
+            </div>
+          </div>
+        )}
       </div>
       
-      {/* Compact footer with health bar and mini-stats */}
+      {/* Footer with health and stats - FIXED sizing */}
       <div className="creature-card-footer">
         {/* Health bar */}
         <div className="health-bar-container">
-          <div className="health-bar" style={{ width: `${healthPercentage}%` }} />
+          <div 
+            className="health-bar" 
+            style={{ width: `${healthPercentage}%` }}
+            data-health={healthStatus}
+          />
           <span className="health-text">
             {currentHealth}/{maxHealth}
           </span>
         </div>
         
-        {/* Ultra-compact mini-stats */}
+        {/* Two-row stats grid with proper sizing */}
         <div className="mini-stats">
-          <div className={`mini-stat ${isPrimaryPhysical ? 'primary' : ''}`}>
-            ⚔️{physicalAttack}
-          </div>
-          <div className={`mini-stat ${!isPrimaryPhysical ? 'primary' : ''}`}>
-            ✨{magicalAttack}
-          </div>
-          <div className="mini-stat">
-            🛡️{physicalDefense}
-          </div>
-          <div className="mini-stat">
-            🔮{magicalDefense}
-          </div>
-          <div className="mini-stat">
-            ⚡{initiative}
+          {/* Row 1: Attack stats and initiative */}
+          {formatStat('⚔️', physicalAttack, isPrimaryPhysical)}
+          {formatStat('✨', magicalAttack, !isPrimaryPhysical)}
+          {formatStat('⚡', initiative)}
+          
+          {/* Row 2: Defense stats */}
+          {formatStat('🛡️', physicalDefense)}
+          {formatStat('🔮', magicalDefense)}
+          
+          {/* Optional 6th stat slot - can be used for special indicators */}
+          <div className="mini-stat special-slot">
+            {creature.specialty_stats && creature.specialty_stats.length > 0 ? (
+              <span className="specialty-indicator" title={`Specialty: ${creature.specialty_stats.join(', ')}`}>
+                ★
+              </span>
+            ) : (
+              <span className="rarity-indicator" title={`${creature.rarity} creature`}>
+                {creature.rarity?.charAt(0) || 'C'}
+              </span>
+            )}
           </div>
         </div>
       </div>
