@@ -1,100 +1,198 @@
-// src/components/battle/BattleLog.jsx - Enhanced with collapsible functionality
-import React, { useRef, useEffect, useState } from 'react';
+// src/components/battle/CreatureCard.jsx - Enhanced with two-row stats layout
+import React, { useState } from 'react';
+import { getFormDescription } from '../../utils/creatureHelpers';
+import { getRarityColor } from '../../utils/uiHelpers';
+import { getPlaceholderForForm } from '../../utils/enemyPlaceholders';
 
-const BattleLog = ({ log }) => {
-  const logEndRef = useRef(null);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [hasNewEntries, setHasNewEntries] = useState(false);
-  const [lastLogLength, setLastLogLength] = useState(0);
+const CreatureCard = ({ 
+  creature, 
+  position, 
+  isActive, 
+  onClick, 
+  isSelected,
+  isDefending,
+  activeEffects = [],
+  size = 'normal'
+}) => {
+  const [imageLoaded, setImageLoaded] = useState(true);
+  const [showDetailedStats, setShowDetailedStats] = useState(false);
   
-  // Auto-scroll to the latest log entry
-  useEffect(() => {
-    if (logEndRef.current && (isExpanded || hasNewEntries)) {
-      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [log, isExpanded, hasNewEntries]);
+  if (!creature) {
+    return <div className="creature-card error">Missing creature data</div>;
+  }
   
-  // Detect new entries
-  useEffect(() => {
-    if (log.length > lastLogLength) {
-      setHasNewEntries(true);
-      setLastLogLength(log.length);
-      
-      // Reset the new entries indicator after a delay
-      const timer = setTimeout(() => {
-        setHasNewEntries(false);
-      }, 3000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [log.length, lastLogLength]);
+  const battleStats = creature.battleStats || {};
+  const {
+    maxHealth = 50,
+    physicalAttack = 10,
+    magicalAttack = 10,
+    physicalDefense = 5,
+    magicalDefense = 5,
+    initiative = 10,
+    criticalChance = 5,
+    dodgeChance = 3
+  } = battleStats;
   
-  // Get the last few entries for collapsed view
-  const getRecentEntries = () => {
-    if (isExpanded) return log;
-    return log.slice(-3); // Show last 3 entries when collapsed
+  const currentHealth = creature.currentHealth !== undefined ? 
+    creature.currentHealth : maxHealth;
+  
+  const cardClasses = [
+    'creature-card',
+    position,
+    isActive ? 'active' : '',
+    isSelected ? 'selected' : '',
+    isDefending ? 'defending' : '',
+    size === 'small' ? 'small-card' : '',
+    showDetailedStats ? 'show-details' : ''
+  ].filter(Boolean).join(' ');
+  
+  const healthPercentage = Math.max(0, Math.min(100, (currentHealth / maxHealth) * 100));
+  const healthStatus = healthPercentage <= 20 ? 'critical' : 
+                      healthPercentage <= 50 ? 'low' : 'normal';
+  
+  const isPrimaryPhysical = physicalAttack >= magicalAttack;
+  const form = creature.form || 0;
+  
+  const handleImageError = (e) => {
+    e.target.src = getPlaceholderForForm(form);
+    setImageLoaded(false);
+    e.target.onerror = null;
   };
   
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-    setHasNewEntries(false);
+  const handleCardClick = (e) => {
+    if (e.detail === 2) { // Double click
+      setShowDetailedStats(!showDetailedStats);
+    } else {
+      onClick && onClick();
+    }
   };
   
-  // Format log entry with color coding
-  const formatLogEntry = (entry) => {
-    const message = entry.message;
-    let className = 'log-entry';
-    
-    // Add specific classes based on content
-    if (message.includes('defeated') || message.includes('Defeat')) {
-      className += ' defeat';
-    } else if (message.includes('Victory') || message.includes('healed')) {
-      className += ' healing';
-    } else if (message.includes('Critical')) {
-      className += ' critical';
-    } else if (message.includes('damage')) {
-      className += ' damage';
-    } else if (message.includes('deployed')) {
-      className += ' deploy';
-    } else if (message.includes('defended') || message.includes('defensive')) {
-      className += ' defend';
-    }
-    
-    return className;
+  // Format stat value with icon
+  const formatStat = (icon, value, isPrimary = false) => {
+    return (
+      <div className={`mini-stat ${isPrimary ? 'primary' : ''}`} title={getStatTooltip(icon)}>
+        <span className="stat-icon">{icon}</span>
+        <span className="stat-value">{value}</span>
+      </div>
+    );
+  };
+  
+  const getStatTooltip = (icon) => {
+    const tooltips = {
+      '⚔️': 'Physical Attack',
+      '✨': 'Magical Attack',
+      '🛡️': 'Physical Defense',
+      '🔮': 'Magical Defense',
+      '⚡': 'Initiative',
+      '🎯': `Critical Chance: ${criticalChance}%`,
+      '💨': `Dodge Chance: ${dodgeChance}%`
+    };
+    return tooltips[icon] || '';
   };
   
   return (
-    <div className={`battle-log ${isExpanded ? 'expanded' : ''}`}>
-      <div className="log-title" onClick={toggleExpanded}>
-        <span>
-          Battle Log 
-          {!isExpanded && log.length > 3 && (
-            <span className="log-count"> ({log.length - 3} hidden)</span>
-          )}
+    <div 
+      className={cardClasses} 
+      onClick={handleCardClick}
+      data-rarity={creature.rarity}
+    >
+      {/* Card header */}
+      <div className="creature-card-header" style={{ 
+        backgroundColor: getRarityColor(creature.rarity) + '99',
+      }}>
+        <span className="creature-name" title={creature.species_name}>
+          {creature.species_name || 'Unknown'}
         </span>
-        {hasNewEntries && !isExpanded && (
-          <span className="new-entry-indicator">● New</span>
+        <span className="creature-form">{getFormDescription(form)}</span>
+      </div>
+
+      {/* Image container */}
+      <div className="creature-image-container">
+        <img 
+          src={creature.image_url || getPlaceholderForForm(form)} 
+          alt={creature.species_name || 'Creature'} 
+          className={`creature-image ${!imageLoaded ? 'image-fallback' : ''}`}
+          onError={handleImageError}
+          onLoad={() => setImageLoaded(true)}
+        />
+        
+        {/* Status effects */}
+        {activeEffects && activeEffects.length > 0 && (
+          <div className="status-effects">
+            {activeEffects.map(effect => effect && (
+              <div 
+                key={effect.id || Math.random()} 
+                className={`status-icon ${effect.type || ''}`}
+                title={effect.description || 'Effect'}
+              >
+                {effect.icon || '✨'}
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {/* Defending indicator */}
+        {isDefending && (
+          <div className="defending-shield">
+            🛡️
+          </div>
+        )}
+        
+        {/* Quick stats overlay (optional) */}
+        {showDetailedStats && (
+          <div className="detailed-stats-overlay">
+            <div className="stat-row">
+              <span>Crit: {criticalChance}%</span>
+              <span>Dodge: {dodgeChance}%</span>
+            </div>
+            <div className="stat-row">
+              <span>Energy Cost: {creature.battleStats?.energyCost || 3}</span>
+            </div>
+          </div>
         )}
       </div>
       
-      <div className="log-entries">
-        {!isExpanded && log.length > 3 && (
-          <div className="older-entries-hint">
-            ··· {log.length - 3} older entries ···
-          </div>
-        )}
+      {/* Footer with health and stats */}
+      <div className="creature-card-footer">
+        {/* Health bar */}
+        <div className="health-bar-container">
+          <div 
+            className="health-bar" 
+            style={{ width: `${healthPercentage}%` }}
+            data-health={healthStatus}
+          />
+          <span className="health-text">
+            {currentHealth}/{maxHealth}
+          </span>
+        </div>
         
-        {getRecentEntries().map(entry => (
-          <div key={entry.id} className={formatLogEntry(entry)}>
-            <span className="turn-indicator">[T{entry.turn}]</span>
-            <span className="log-message">{entry.message}</span>
+        {/* Two-row stats grid */}
+        <div className="mini-stats">
+          {/* Row 1: Attack stats and initiative */}
+          {formatStat('⚔️', physicalAttack, isPrimaryPhysical)}
+          {formatStat('✨', magicalAttack, !isPrimaryPhysical)}
+          {formatStat('⚡', initiative)}
+          
+          {/* Row 2: Defense stats */}
+          {formatStat('🛡️', physicalDefense)}
+          {formatStat('🔮', magicalDefense)}
+          
+          {/* Optional 6th stat slot - can be used for special indicators */}
+          <div className="mini-stat special-slot">
+            {creature.specialty_stats && creature.specialty_stats.length > 0 ? (
+              <span className="specialty-indicator" title={`Specialty: ${creature.specialty_stats.join(', ')}`}>
+                ★
+              </span>
+            ) : (
+              <span className="rarity-indicator" title={`${creature.rarity} creature`}>
+                {creature.rarity?.charAt(0) || 'C'}
+              </span>
+            )}
           </div>
-        ))}
-        
-        <div ref={logEndRef} />
+        </div>
       </div>
     </div>
   );
 };
 
-export default BattleLog;
+export default CreatureCard;
