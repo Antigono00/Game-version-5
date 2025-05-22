@@ -1,425 +1,366 @@
-// src/utils/battleCalculations.js - ENHANCED FOR MUCH HIGHER DIFFICULTY
-// Calculate derived stats from base creature stats - SIGNIFICANTLY ENHANCED
-export const calculateDerivedStats = (creature) => {
-  // Validate input
-  if (!creature || !creature.stats) {
-    // Return default stats if creature or stats are missing
-    return {
-      physicalAttack: 15,  // INCREASED from 10
-      magicalAttack: 15,   // INCREASED from 10
-      physicalDefense: 8,  // INCREASED from 5
-      magicalDefense: 8,   // INCREASED from 5
-      maxHealth: 80,       // INCREASED from 50
-      initiative: 12,      // INCREASED from 10
-      criticalChance: 8,   // INCREASED from 5
-      dodgeChance: 5,      // INCREASED from 3
-      energyCost: 3
-    };
-  }
-  
-  const { energy, strength, magic, stamina, speed } = creature.stats;
-  const rarityMultiplier = getRarityMultiplier(creature.rarity);
-  const formMultiplier = getFormMultiplier(creature.form || 0);
-  const combinationBonus = (creature.combination_level || 0) * 0.15 + 1; // INCREASED from 0.1 to 0.15
-  
-  // Apply specialty stat bonuses
-  const specialtyMultipliers = getSpecialtyMultipliers(creature);
-  
-  // SIGNIFICANTLY ENHANCED stat calculations with much higher scaling
-  return {
-    // ENHANCED: Physical attack now scales much more aggressively
-    physicalAttack: Math.round(
-      (15 + (strength * 3 * specialtyMultipliers.strength) + (speed * 0.8)) * 
-      formMultiplier * combinationBonus * rarityMultiplier
-    ),
+// src/utils/difficultySettings.js - SIGNIFICANTLY ENHANCED DIFFICULTY
+import { 
+  getRandomCreatureTemplate, 
+  createEnemyCreature 
+} from './enemyCreatures';
+
+// Define settings for each difficulty level - MUCH HARDER ACROSS THE BOARD
+export const getDifficultySettings = (difficulty) => {
+  const settings = {
+    easy: {
+      enemyStatsMultiplier: 1.3, // INCREASED from 0.9 to 1.3 - enemies now 30% stronger
+      enemyCreatureLevel: {
+        min: 0, // Form 0 creatures
+        max: 2  // INCREASED from 1 to 2 - now up to Form 2 creatures
+      },
+      enemyRarity: {
+        common: 0.5,   // REDUCED from 0.7
+        rare: 0.35,    // INCREASED from 0.3
+        epic: 0.15,    // ADDED epic creatures
+        legendary: 0   // Still no legendary
+      },
+      initialHandSize: 3,        // INCREASED from 2 to 3
+      enemyDeckSize: 5,          // INCREASED from 3 to 5
+      maxFieldSize: 3,           // Same
+      enemyAILevel: 2,           // INCREASED from 1 to 2 - smarter AI even on easy
+      enemyEnergyRegen: 4,       // INCREASED from 2 to 4
+      rewardMultiplier: 0.5,
+      multiActionChance: 0.3,    // NEW: 30% chance for multiple actions per turn
+      aggressionLevel: 0.4       // NEW: 40% aggression (likelihood to attack vs other actions)
+    },
     
-    // ENHANCED: Magical attack scales much more aggressively
-    magicalAttack: Math.round(
-      (15 + (magic * 3 * specialtyMultipliers.magic) + (energy * 0.8)) * 
-      formMultiplier * combinationBonus * rarityMultiplier
-    ),
+    medium: {
+      enemyStatsMultiplier: 1.6, // INCREASED from 1.0 to 1.6 - enemies now 60% stronger
+      enemyCreatureLevel: {
+        min: 1, // Form 1 creatures
+        max: 3  // INCREASED from 2 to 3 - now up to Form 3 creatures
+      },
+      enemyRarity: {
+        common: 0.3,   // REDUCED from 0.5
+        rare: 0.4,     // INCREASED from 0.3
+        epic: 0.25,    // INCREASED from 0.2
+        legendary: 0.05 // ADDED legendary creatures
+      },
+      initialHandSize: 4,        // INCREASED from 3 to 4
+      enemyDeckSize: 6,          // INCREASED from 4 to 6
+      maxFieldSize: 4,           // Same
+      enemyAILevel: 3,           // INCREASED from 2 to 3
+      enemyEnergyRegen: 5,       // INCREASED from 3 to 5
+      rewardMultiplier: 1.0,
+      multiActionChance: 0.5,    // NEW: 50% chance for multiple actions per turn
+      aggressionLevel: 0.6       // NEW: 60% aggression
+    },
     
-    // ENHANCED: Physical defense with better scaling
-    physicalDefense: Math.round(
-      (8 + (stamina * 2.5 * specialtyMultipliers.stamina) + (strength * 0.8)) * 
-      formMultiplier * combinationBonus * rarityMultiplier
-    ),
+    hard: {
+      enemyStatsMultiplier: 2.0, // INCREASED from 1.2 to 2.0 - enemies now double strength
+      enemyCreatureLevel: {
+        min: 2, // INCREASED from 1 to 2
+        max: 3  // Same - Form 3 creatures
+      },
+      enemyRarity: {
+        common: 0.1,   // REDUCED from 0.2
+        rare: 0.3,     // REDUCED from 0.4
+        epic: 0.45,    // INCREASED from 0.3
+        legendary: 0.15 // INCREASED from 0.1
+      },
+      initialHandSize: 4,        // Same
+      enemyDeckSize: 7,          // INCREASED from 5 to 7
+      maxFieldSize: 5,           // Same
+      enemyAILevel: 4,           // INCREASED from 3 to 4
+      enemyEnergyRegen: 6,       // INCREASED from 4 to 6
+      rewardMultiplier: 1.5,
+      multiActionChance: 0.7,    // NEW: 70% chance for multiple actions per turn
+      aggressionLevel: 0.75      // NEW: 75% aggression
+    },
     
-    // ENHANCED: Magical defense with better scaling
-    magicalDefense: Math.round(
-      (8 + (energy * 2.5 * specialtyMultipliers.energy) + (magic * 0.8)) * 
-      formMultiplier * combinationBonus * rarityMultiplier
-    ),
-    
-    // ENHANCED: Health scales much more dramatically with rarity and form
-    maxHealth: Math.round(
-      (80 + (stamina * 5 * specialtyMultipliers.stamina) + (energy * 2)) * 
-      rarityMultiplier * formMultiplier * combinationBonus
-    ),
-    
-    // ENHANCED: Initiative with better scaling
-    initiative: Math.round(
-      (12 + (speed * 3 * specialtyMultipliers.speed) + (energy * 0.5)) * 
-      formMultiplier * combinationBonus
-    ),
-    
-    // ENHANCED: Critical chance with higher caps
-    criticalChance: Math.min(8 + (speed * 0.8 * specialtyMultipliers.speed) + (magic * 0.3), 40), // INCREASED cap from 30 to 40
-    
-    // ENHANCED: Dodge chance with higher caps
-    dodgeChance: Math.min(5 + (speed * 0.5 * specialtyMultipliers.speed) + (stamina * 0.2), 25), // INCREASED cap from 20 to 25
-    
-    // ENHANCED: Energy cost scaling
-    energyCost: Math.max(1, Math.round(12 - (energy * 0.3 * specialtyMultipliers.energy))), // INCREASED base from 10 to 12
+    expert: {
+      enemyStatsMultiplier: 2.5, // INCREASED from 1.5 to 2.5 - enemies now 150% stronger
+      enemyCreatureLevel: {
+        min: 2, // Same
+        max: 3  // Same
+      },
+      enemyRarity: {
+        common: 0,     // NO common creatures
+        rare: 0.2,     // REDUCED from 0.3
+        epic: 0.5,     // Same
+        legendary: 0.3 // INCREASED from 0.2
+      },
+      initialHandSize: 5,        // INCREASED from 4 to 5
+      enemyDeckSize: 8,          // INCREASED from 6 to 8
+      maxFieldSize: 6,           // Same
+      enemyAILevel: 5,           // INCREASED from 4 to 5 - maximum intelligence
+      enemyEnergyRegen: 7,       // INCREASED from 5 to 7
+      rewardMultiplier: 2.0,
+      multiActionChance: 0.9,    // NEW: 90% chance for multiple actions per turn
+      aggressionLevel: 0.85      // NEW: 85% aggression - very aggressive
+    }
   };
+  
+  return settings[difficulty] || settings.medium;
 };
 
-// ENHANCED: Get specialty stat multipliers with more dramatic bonuses
-function getSpecialtyMultipliers(creature) {
-  // Default multipliers (all 1.0)
-  const multipliers = {
-    energy: 1.0,
-    strength: 1.0,
-    magic: 1.0,
-    stamina: 1.0,
-    speed: 1.0
-  };
+// Generate enemy creatures based on difficulty - ENHANCED FOR HARDER GAMEPLAY
+export const generateEnemyCreatures = (difficulty, count = 5, playerCreatures = []) => {
+  const settings = getDifficultySettings(difficulty);
   
-  // Apply specialty stat bonuses if available - MUCH MORE DRAMATIC
-  if (creature.specialty_stats && Array.isArray(creature.specialty_stats)) {
-    // If creature has only one specialty stat, give it a MASSIVE boost
-    if (creature.specialty_stats.length === 1) {
-      const stat = creature.specialty_stats[0];
-      if (multipliers[stat] !== undefined) {
-        multipliers[stat] = 2.5; // INCREASED from 2.0 to 2.5 (150% increase)
+  // Use the deck size from settings
+  const maxCreatureCount = settings.enemyDeckSize || 5;
+  const adjustedCount = Math.min(count, maxCreatureCount);
+  
+  const creatures = [];
+
+  // Create a pool of species templates from player creatures or use defaults
+  const speciesPool = [];
+  
+  if (playerCreatures && playerCreatures.length > 0) {
+    // Extract unique species from player creatures
+    const playerSpeciesIds = new Set();
+    
+    playerCreatures.forEach(creature => {
+      if (creature.species_id) {
+        playerSpeciesIds.add(creature.species_id);
       }
-    } 
-    // If creature has two specialty stats, give them strong boosts
-    else if (creature.specialty_stats.length >= 2) {
-      creature.specialty_stats.forEach(stat => {
-        if (multipliers[stat] !== undefined) {
-          multipliers[stat] = 1.8; // INCREASED from 1.5 to 1.8 (80% increase)
-        }
-      });
+    });
+    
+    // Convert to array
+    Array.from(playerSpeciesIds).forEach(speciesId => {
+      speciesPool.push(speciesId);
+    });
+  }
+  
+  // ===== ENHANCED ENEMY GENERATION FOR MAXIMUM CHALLENGE =====
+  for (let i = 0; i < adjustedCount; i++) {
+    // Generate a creature with appropriate rarity
+    const rarity = selectRarity(settings.enemyRarity);
+    
+    // Generate form level within allowed range - BIAS TOWARD HIGHER FORMS
+    let form;
+    if (difficulty === 'expert' || difficulty === 'hard') {
+      // 70% chance for max form on hard/expert
+      form = Math.random() < 0.7 ? settings.enemyCreatureLevel.max : 
+             Math.floor(Math.random() * (settings.enemyCreatureLevel.max - settings.enemyCreatureLevel.min + 1)) + settings.enemyCreatureLevel.min;
+    } else {
+      // Normal distribution for easier difficulties
+      form = Math.floor(
+        Math.random() * (settings.enemyCreatureLevel.max - settings.enemyCreatureLevel.min + 1)
+      ) + settings.enemyCreatureLevel.min;
+    }
+    
+    // Select a species ID - either from player creatures or random
+    let speciesId;
+    if (speciesPool.length > 0) {
+      speciesId = speciesPool[Math.floor(Math.random() * speciesPool.length)];
+    } else {
+      // Get a random template if we don't have player species
+      const template = getRandomCreatureTemplate();
+      speciesId = template.id;
+    }
+    
+    // Generate stats aligned with the technical documentation - MUCH STRONGER
+    const stats = generateEnemyStats(rarity, form, settings.enemyStatsMultiplier);
+    
+    // Determine specialty stats - using random selection if needed
+    let specialtyStats = [];
+    
+    // Based on the species, create appropriate specialty stats
+    // This would normally come from the speciesId, but we'll randomize for this implementation
+    const statTypes = ['energy', 'strength', 'magic', 'stamina', 'speed'];
+    
+    // ENHANCED: Higher chance for 2 specialty stats on harder difficulties
+    const specialtyCount = (difficulty === 'hard' || difficulty === 'expert') ? 
+      (Math.random() < 0.8 ? 2 : 1) : // 80% chance for 2 specialty stats
+      (Math.random() < 0.4 ? 2 : 1);  // 40% chance for 2 specialty stats on easier
+    
+    for (let j = 0; j < specialtyCount; j++) {
+      // Select a random stat that's not already included
+      const availableStats = statTypes.filter(stat => !specialtyStats.includes(stat));
+      const randomStat = availableStats[Math.floor(Math.random() * availableStats.length)];
+      specialtyStats.push(randomStat);
+    }
+    
+    // Create the enemy creature
+    const creature = createEnemyCreature(speciesId, form, rarity, stats);
+    
+    // Add specialty stats to the creature
+    creature.specialty_stats = specialtyStats;
+    
+    // Add any form-specific evolution boosts
+    applyEvolutionBoosts(creature, form);
+    
+    // Add random stat upgrades to simulate player progression - MORE UPGRADES
+    addRandomStatUpgrades(creature, form, difficulty);
+    
+    // ENHANCED: Add combination bonuses on harder difficulties
+    if (difficulty === 'hard' || difficulty === 'expert') {
+      const combinationLevel = Math.floor(Math.random() * 3); // 0-2 combination levels
+      creature.combination_level = combinationLevel;
+      if (combinationLevel > 0) {
+        applyCombinationBonuses(creature, combinationLevel);
+      }
+    }
+    
+    creatures.push(creature);
+  }
+  
+  return creatures;
+};
+
+// Select rarity based on probability distribution
+function selectRarity(rarityDistribution) {
+  const rnd = Math.random();
+  let cumulativeProbability = 0;
+  
+  for (const [rarity, probability] of Object.entries(rarityDistribution)) {
+    cumulativeProbability += probability;
+    if (rnd <= cumulativeProbability) {
+      return rarity.charAt(0).toUpperCase() + rarity.slice(1); // Capitalize
     }
   }
   
-  return multipliers;
+  return 'Common'; // Fallback
 }
 
-// ENHANCED: Calculate damage for an attack with more aggressive scaling
-export const calculateDamage = (attacker, defender, attackType = 'physical') => {
-  // Validate input
-  if (!attacker || !defender || !attacker.battleStats || !defender.battleStats) {
-    return {
-      damage: 3, // INCREASED default from 1 to 3
-      isDodged: false,
-      isCritical: false,
-      effectiveness: 'normal'
-    };
-  }
-  
-  // Get derived stats from battleStats
-  const attackerStats = attacker.battleStats;
-  const defenderStats = defender.battleStats;
-  
-  // Determine base attack and defense values based on attack type
-  const attackValue = attackType === 'physical' 
-    ? attackerStats.physicalAttack 
-    : attackerStats.magicalAttack;
-    
-  const defenseValue = attackType === 'physical' 
-    ? defenderStats.physicalDefense 
-    : defenderStats.magicalDefense;
-  
-  // ENHANCED: Calculate effectiveness multiplier with more dramatic swings
-  const effectivenessMultiplier = getEffectivenessMultiplier(
-    attackType, 
-    attacker.stats || {}, 
-    defender.stats || {}
-  );
-  
-  // ENHANCED: Calculate random variance (±20% instead of ±15%)
-  const variance = 0.8 + (Math.random() * 0.4); // INCREASED variance
-  
-  // ENHANCED: Check for critical hit with higher base chance
-  const criticalRoll = Math.random() * 100;
-  const baseCritChance = attackerStats.criticalChance || 8; // INCREASED from 5
-  const isCritical = criticalRoll <= baseCritChance;
-  const criticalMultiplier = isCritical ? 2.0 : 1; // INCREASED from 1.5 to 2.0
-  
-  // ENHANCED: Check for dodge with slightly higher base chance
-  const dodgeRoll = Math.random() * 100;
-  const baseDodgeChance = defenderStats.dodgeChance || 5; // INCREASED from 3
-  const isDodged = dodgeRoll <= baseDodgeChance;
-  
-  if (isDodged) {
-    return {
-      damage: 0,
-      isDodged: true,
-      isCritical: false,
-      effectiveness: 'normal'
-    };
-  }
-  
-  // ENHANCED DAMAGE FORMULA: More aggressive but balanced
-  let rawDamage = attackValue * effectivenessMultiplier * variance * criticalMultiplier;
-  
-  // ENHANCED: Defense calculation - still percentage-based but more aggressive
-  // Defense now has diminishing returns to prevent complete damage negation
-  const defenseEfficiency = Math.min(0.85, defenseValue / (defenseValue + attackValue * 1.5)); // INCREASED cap from 0.75 to 0.85
-  
-  // Apply the damage reduction
-  let finalDamage = Math.max(2, Math.round(rawDamage * (1 - defenseEfficiency))); // INCREASED minimum from 1 to 2
-  
-  // ENHANCED: Add bonus damage for overwhelming attacks
-  if (attackValue > defenseValue * 2) {
-    finalDamage = Math.round(finalDamage * 1.3); // 30% bonus for overwhelming attacks
-  }
-  
-  // Log the damage calculation details for debugging
-  console.log(`ENHANCED Damage: ${attackValue} attack vs ${defenseValue} defense`);
-  console.log(`Raw: ${rawDamage.toFixed(1)}, Reduction: ${(defenseEfficiency * 100).toFixed(1)}%, Final: ${finalDamage}`);
-  
-  return {
-    damage: finalDamage,
-    isDodged: false,
-    isCritical,
-    effectiveness: getEffectivenessText(effectivenessMultiplier)
-  };
-};
-
-// ENHANCED: Calculate effectiveness multiplier with more dramatic differences
-export const getEffectivenessMultiplier = (attackType, attackerStats, defenderStats) => {
-  // Check for missing stats
-  if (!attackerStats || !defenderStats) {
-    return 1.0; // Default normal effectiveness
-  }
-  
-  // ENHANCED Rock-Paper-Scissors relationships with more dramatic effects:
-  // Strength > Stamina > Speed > Magic > Energy > Strength
-  
-  let effectiveness = 1.0;
-  
-  if (attackType === 'physical') {
-    // Physical attacks are based on Strength
-    const attackerStrength = attackerStats.strength || 5;
-    const defenderStamina = defenderStats.stamina || 5;
-    const defenderMagic = defenderStats.magic || 5;
-    
-    // Strong advantage against stamina-focused defenders
-    if (attackerStrength > 7 && defenderStamina > defenderMagic) {
-      effectiveness = 1.8; // INCREASED from 1.5 to 1.8
-    }
-    // Weakness against magic-focused defenders
-    else if (defenderMagic > 7 && defenderMagic > defenderStamina) {
-      effectiveness = 0.6; // DECREASED from 0.75 to 0.6
-    }
-    // Moderate advantage for high-strength attackers
-    else if (attackerStrength > defenderStamina + 2) {
-      effectiveness = 1.3;
-    }
-  } else {
-    // Magical attacks are based on Magic
-    const attackerMagic = attackerStats.magic || 5;
-    const defenderSpeed = defenderStats.speed || 5;
-    const defenderEnergy = defenderStats.energy || 5;
-    
-    // Strong advantage against speed-focused defenders
-    if (attackerMagic > 7 && defenderSpeed > defenderEnergy) {
-      effectiveness = 1.8; // INCREASED from 1.5 to 1.8
-    }
-    // Weakness against energy-focused defenders
-    else if (defenderEnergy > 7 && defenderEnergy > defenderSpeed) {
-      effectiveness = 0.6; // DECREASED from 0.75 to 0.6
-    }
-    // Moderate advantage for high-magic attackers
-    else if (attackerMagic > defenderEnergy + 2) {
-      effectiveness = 1.3;
-    }
-  }
-  
-  // ENHANCED: Additional effectiveness bonuses for stat combinations
-  if (attackType === 'physical') {
-    const attackerSpeed = attackerStats.speed || 5;
-    const defenderSpeed = defenderStats.speed || 5;
-    
-    // Speed advantage for physical attacks
-    if (attackerSpeed > defenderSpeed + 3) {
-      effectiveness *= 1.2; // Speed advantage multiplier
-    }
-  } else {
-    const attackerEnergy = attackerStats.energy || 5;
-    const defenderMagicDef = defenderStats.magic || 5;
-    
-    // Energy advantage for magical attacks
-    if (attackerEnergy > defenderMagicDef + 3) {
-      effectiveness *= 1.2; // Energy advantage multiplier
-    }
-  }
-  
-  // Cap effectiveness to prevent extreme values
-  return Math.max(0.4, Math.min(2.5, effectiveness)); // INCREASED range from [0.5, 2.0] to [0.4, 2.5]
-};
-
-// ENHANCED: Get text description of effectiveness with more variety
-export const getEffectivenessText = (multiplier) => {
-  if (multiplier >= 2.0) return 'devastatingly effective';      // NEW
-  if (multiplier >= 1.8) return 'extremely effective';         // NEW  
-  if (multiplier >= 1.5) return 'super effective';
-  if (multiplier >= 1.3) return 'very effective';              // NEW
-  if (multiplier >= 1.1) return 'effective';                   // NEW
-  if (multiplier <= 0.4) return 'barely effective';            // NEW
-  if (multiplier <= 0.6) return 'not very effective';
-  if (multiplier <= 0.8) return 'somewhat effective';          // NEW
-  return 'normal';
-};
-
-// ENHANCED: Get multipliers based on rarity and form with more dramatic scaling
-export const getRarityMultiplier = (rarity) => {
-  if (!rarity) return 1.0; // Default if missing
-  
+// Generate stats based on the technical documentation - ENHANCED FOR DIFFICULTY
+function generateEnemyStats(rarity, form, statsMultiplier) {
+  // Base stats based on rarity (per technical documentation)
+  let baseStats;
   switch (rarity) {
-    case 'Legendary': return 1.6; // INCREASED from 1.3 to 1.6
-    case 'Epic': return 1.4;      // INCREASED from 1.2 to 1.4
-    case 'Rare': return 1.2;      // INCREASED from 1.1 to 1.2
-    default: return 1.0;
+    case 'Legendary':
+      baseStats = { energy: 8, strength: 8, magic: 8, stamina: 8, speed: 8 };
+      break;
+    case 'Epic':
+      baseStats = { energy: 7, strength: 7, magic: 7, stamina: 7, speed: 7 };
+      break;
+    case 'Rare':
+      baseStats = { energy: 6, strength: 6, magic: 6, stamina: 6, speed: 6 };
+      break;
+    default: // Common
+      baseStats = { energy: 5, strength: 5, magic: 5, stamina: 5, speed: 5 };
   }
-};
-
-export const getFormMultiplier = (form) => {
-  if (form === undefined || form === null) return 1.0; // Default if missing
-  return 1 + (form * 0.35); // INCREASED from 0.25 to 0.35 (Form 0 = 1.0x, Form 3 = 2.05x)
-};
-
-// NEW: Enhanced stat calculation helpers for more complex scenarios
-
-// Calculate total creature power rating
-export const calculateCreaturePower = (creature) => {
-  if (!creature || !creature.battleStats) return 0;
   
-  const stats = creature.battleStats;
-  const attackPower = Math.max(stats.physicalAttack || 0, stats.magicalAttack || 0);
-  const defensePower = Math.max(stats.physicalDefense || 0, stats.magicalDefense || 0);
-  const utilityPower = (stats.initiative || 0) + (stats.criticalChance || 0) + (stats.dodgeChance || 0);
-  
-  return Math.round(
-    (attackPower * 2) + 
-    defensePower + 
-    (stats.maxHealth || 0) * 0.1 + 
-    utilityPower * 0.5 +
-    (creature.form || 0) * 5 +
-    getRarityValue(creature.rarity) * 10
-  );
-};
-
-// Calculate type advantage multiplier for more complex interactions
-export const calculateTypeAdvantage = (attackerStats, defenderStats) => {
-  if (!attackerStats || !defenderStats) return 1.0;
-  
-  let advantage = 1.0;
-  
-  // Multiple stat comparisons for more nuanced advantages
-  const statComparisons = [
-    { attacker: 'strength', defender: 'stamina', multiplier: 1.4 },
-    { attacker: 'stamina', defender: 'speed', multiplier: 1.4 },
-    { attacker: 'speed', defender: 'magic', multiplier: 1.4 },
-    { attacker: 'magic', defender: 'energy', multiplier: 1.4 },
-    { attacker: 'energy', defender: 'strength', multiplier: 1.4 }
-  ];
-  
-  for (const comparison of statComparisons) {
-    const attackerStat = attackerStats[comparison.attacker] || 5;
-    const defenderStat = defenderStats[comparison.defender] || 5;
+  // Apply difficulty multiplier to make enemies stronger
+  const stats = {};
+  for (const [stat, value] of Object.entries(baseStats)) {
+    // Apply the difficulty multiplier with additional variance for unpredictability
+    const variance = 0.9 + (Math.random() * 0.2); // ±10% variance
+    stats[stat] = Math.round(value * statsMultiplier * variance);
     
-    if (attackerStat > defenderStat + 2) {
-      advantage *= comparison.multiplier;
-      break; // Only apply one major advantage
-    }
+    // Ensure stats don't go below 1
+    stats[stat] = Math.max(1, stats[stat]);
+    
+    // ENHANCED: Cap stats at reasonable maximums to prevent game-breaking
+    stats[stat] = Math.min(20, stats[stat]);
   }
   
-  return Math.min(2.0, advantage); // Cap at 2x advantage
-};
+  return stats;
+}
 
-// Calculate battle outcome probability
-export const calculateBattleOdds = (attacker, defender) => {
-  if (!attacker || !defender) return 0.5;
+// Apply evolution boosts to creature stats based on form - ENHANCED
+function applyEvolutionBoosts(creature, form) {
+  if (!creature || !creature.stats) return;
   
-  const attackerPower = calculateCreaturePower(attacker);
-  const defenderPower = calculateCreaturePower(defender);
-  const typeAdvantage = calculateTypeAdvantage(attacker.stats, defender.stats);
+  // No boosts for Form 0 (Egg)
+  if (form === 0) return;
   
-  const powerRatio = (attackerPower * typeAdvantage) / Math.max(defenderPower, 1);
+  const stats = creature.stats;
   
-  // Convert power ratio to probability (0.0 to 1.0)
-  return Math.max(0.1, Math.min(0.9, powerRatio / (powerRatio + 1)));
-};
-
-// Helper function for rarity values
-const getRarityValue = (rarity) => {
-  switch (rarity) {
-    case 'Legendary': return 4;
-    case 'Epic': return 3;
-    case 'Rare': return 2;
-    default: return 1;
+  // Form 1 boost: +1 to all stats
+  if (form >= 1) {
+    Object.keys(stats).forEach(stat => {
+      stats[stat] += 1;
+    });
   }
-};
-
-// NEW: Calculate synergy bonuses for creatures with complementary stats
-export const calculateSynergyBonus = (creatures) => {
-  if (!creatures || creatures.length < 2) return 0;
   
-  let synergyBonus = 0;
-  
-  // Check for stat synergies between creatures
-  for (let i = 0; i < creatures.length - 1; i++) {
-    for (let j = i + 1; j < creatures.length; j++) {
-      const creature1 = creatures[i];
-      const creature2 = creatures[j];
+  // Form 2 boost: +1 to all stats and +2 to specialty stats (INCREASED from +1)
+  if (form >= 2) {
+    Object.keys(stats).forEach(stat => {
+      stats[stat] += 1;
       
-      if (!creature1.stats || !creature2.stats) continue;
-      
-      // Same species bonus
-      if (creature1.species_id === creature2.species_id) {
-        synergyBonus += 0.1; // 10% bonus per same species pair
+      // Add an extra boost to specialty stats - ENHANCED
+      if (creature.specialty_stats && creature.specialty_stats.includes(stat)) {
+        stats[stat] += 2; // INCREASED from +1 to +2
       }
-      
-      // Complementary stat bonuses
-      const complementaryPairs = [
-        ['strength', 'stamina'],
-        ['magic', 'energy'],
-        ['speed', 'strength'],
-        ['stamina', 'magic'],
-        ['energy', 'speed']
-      ];
-      
-      for (const [stat1, stat2] of complementaryPairs) {
-        if ((creature1.stats[stat1] || 0) > 7 && (creature2.stats[stat2] || 0) > 7) {
-          synergyBonus += 0.05; // 5% bonus per complementary pair
-        }
-      }
-    }
+    });
   }
   
-  return Math.min(0.5, synergyBonus); // Cap at 50% total synergy bonus
-};
+  // Form 3 boost: +3 to all stats (INCREASED from +2)
+  if (form >= 3) {
+    Object.keys(stats).forEach(stat => {
+      stats[stat] += 3; // INCREASED from +2 to +3
+      
+      // Additional specialty stat bonus for Form 3
+      if (creature.specialty_stats && creature.specialty_stats.includes(stat)) {
+        stats[stat] += 1; // Extra +1 for specialty stats at max form
+      }
+    });
+  }
+}
 
-// NEW: Calculate field presence bonus based on creature positioning
-export const calculateFieldPresenceBonus = (friendlyCreatures, enemyCreatures) => {
-  if (!friendlyCreatures || !enemyCreatures) return 1.0;
+// Add random stat upgrades to simulate player progression - SIGNIFICANTLY MORE UPGRADES
+function addRandomStatUpgrades(creature, form, difficulty) {
+  if (!creature || !creature.stats) return;
   
-  const friendlyCount = friendlyCreatures.length;
-  const enemyCount = enemyCreatures.length;
+  const stats = creature.stats;
   
-  if (friendlyCount === 0) return 0.8; // Disadvantage when no creatures
-  if (enemyCount === 0) return 1.3;    // Major advantage when enemy has no creatures
+  // Determine number of upgrades based on form and difficulty - MUCH MORE AGGRESSIVE
+  let totalUpgrades = form * 4; // INCREASED from 3 to 4 upgrades per form
   
-  const ratio = friendlyCount / enemyCount;
+  // Add significantly more upgrades for harder difficulties
+  switch (difficulty) {
+    case 'easy':
+      totalUpgrades += 2; // Even easy gets extra upgrades
+      break;
+    case 'medium':
+      totalUpgrades += 4; // INCREASED from 0 to 4
+      break;
+    case 'hard':
+      totalUpgrades += 7; // INCREASED from 2 to 7
+      break;
+    case 'expert':
+      totalUpgrades += 10; // INCREASED from 4 to 10
+      break;
+  }
   
-  // Field presence bonus/penalty based on creature count ratio
-  if (ratio >= 2.0) return 1.3;      // Major advantage (2:1 or better)
-  if (ratio >= 1.5) return 1.2;      // Good advantage (3:2 or better)
-  if (ratio >= 1.0) return 1.1;      // Slight advantage (equal or better)
-  if (ratio >= 0.5) return 0.95;     // Slight disadvantage
-  return 0.85;                       // Major disadvantage (outnumbered 2:1 or worse)
-};
+  // Apply random upgrades with bias toward specialty stats
+  for (let i = 0; i < totalUpgrades; i++) {
+    let statToUpgrade;
+    
+    // 60% chance to upgrade a specialty stat if available
+    if (creature.specialty_stats && creature.specialty_stats.length > 0 && Math.random() < 0.6) {
+      statToUpgrade = creature.specialty_stats[Math.floor(Math.random() * creature.specialty_stats.length)];
+    } else {
+      // Select a random stat to upgrade
+      const availableStats = Object.keys(stats);
+      statToUpgrade = availableStats[Math.floor(Math.random() * availableStats.length)];
+    }
+    
+    // Add upgrade points - ENHANCED with bigger bonuses
+    const upgradeAmount = (difficulty === 'hard' || difficulty === 'expert') ? 
+      Math.floor(Math.random() * 2) + 1 : // 1-2 points per upgrade on hard/expert
+      1; // 1 point per upgrade on easier difficulties
+    
+    stats[statToUpgrade] += upgradeAmount;
+  }
+}
+
+// NEW: Apply combination bonuses for enhanced creatures
+function applyCombinationBonuses(creature, combinationLevel) {
+  if (!creature || !creature.stats || !creature.specialty_stats) return;
+  
+  const stats = creature.stats;
+  
+  // Each combination level adds significant bonuses to specialty stats
+  creature.specialty_stats.forEach(stat => {
+    if (stats[stat] !== undefined) {
+      stats[stat] += combinationLevel * 2; // +2 per combination level to specialty stats
+    }
+  });
+  
+  // Also add general bonuses
+  Object.keys(stats).forEach(stat => {
+    stats[stat] += Math.floor(combinationLevel * 0.5); // +0.5 per level to all stats (rounded down)
+  });
+  
+  // Set the combination level on the creature
+  creature.combination_level = combinationLevel;
+}
