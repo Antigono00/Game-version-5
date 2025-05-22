@@ -2579,7 +2579,7 @@ const BattleGame = ({ onClose }) => {
   ]);
   
   // ========== EVENT HANDLERS ==========
-  // ENHANCED: Handle player action with better energy management
+  // FIXED: Handle player action without immediate win condition checks
   const handlePlayerAction = useCallback((action, targetCreature, sourceCreature) => {
     if (actionInProgress || activePlayer !== 'player' || gameState !== 'battle') {
       console.log("Ignoring player action - action in progress or not player turn");
@@ -2643,19 +2643,7 @@ const BattleGame = ({ onClose }) => {
         setActionInProgress(true);
         clearSelections();
         
-        if (checkWinCondition()) {
-          dispatch({ type: ACTIONS.SET_GAME_STATE, gameState: 'victory' });
-          addToBattleLog("Victory! You've defeated all enemy creatures!");
-          setActionInProgress(false);
-          return;
-        } 
-        
-        if (checkLossCondition()) {
-          dispatch({ type: ACTIONS.SET_GAME_STATE, gameState: 'defeat' });
-          addToBattleLog("Defeat! All your creatures have been defeated!");
-          setActionInProgress(false);
-          return;
-        }
+        // FIXED: Don't check win conditions here - let the useEffect handle it after state updates
         
         // Apply ongoing effects for player's turn BEFORE switching to enemy
         dispatch({ type: ACTIONS.APPLY_ONGOING_EFFECTS });
@@ -2688,8 +2676,6 @@ const BattleGame = ({ onClose }) => {
     useTool,
     useSpell,
     defendCreatureAction,
-    checkWinCondition,
-    checkLossCondition,
     addToBattleLog,
     processEnemyTurn
   ]);
@@ -2753,17 +2739,32 @@ const BattleGame = ({ onClose }) => {
   }, [playerHand, playerField, enemyField, playerTools, playerSpells, playerEnergy]);
   
   // ========== EFFECTS ==========
+  // FIXED: Check win conditions after state updates, with proper logging
   useEffect(() => {
     if (gameState !== 'battle') return;
     
+    // Add debugging to see actual state
+    console.log('Win condition check:', {
+      enemyField: enemyField.length,
+      enemyHand: enemyHand.length, 
+      enemyDeck: enemyDeck.length,
+      playerField: playerField.length,
+      playerHand: playerHand.length,
+      playerDeck: playerDeck.length
+    });
+    
     if (checkWinCondition()) {
+      console.log('VICTORY TRIGGERED - Enemy has no creatures left');
       dispatch({ type: ACTIONS.SET_GAME_STATE, gameState: 'victory' });
       addToBattleLog("Victory! You've defeated all enemy creatures!");
+      setActionInProgress(false);
     } else if (checkLossCondition()) {
+      console.log('DEFEAT TRIGGERED - Player has no creatures left');
       dispatch({ type: ACTIONS.SET_GAME_STATE, gameState: 'defeat' });
       addToBattleLog("Defeat! All your creatures have been defeated!");
+      setActionInProgress(false);
     }
-  }, [gameState, checkWinCondition, checkLossCondition, addToBattleLog]);
+  }, [gameState, enemyField, enemyHand, enemyDeck, playerField, playerHand, playerDeck, checkWinCondition, checkLossCondition, addToBattleLog]);
   
   // ========== RENDER ==========
   return (
