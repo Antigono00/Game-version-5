@@ -1,9 +1,10 @@
-// src/utils/difficultySettings.js - SIGNIFICANTLY ENHANCED DIFFICULTY
+// src/utils/difficultySettings.js - COMPLETE ENHANCED DIFFICULTY SYSTEM
 import { 
   getRandomCreatureTemplate, 
   createEnemyCreature 
 } from './enemyCreatures';
 
+// ===== ENHANCED DIFFICULTY SETTINGS =====
 // Define settings for each difficulty level - MUCH HARDER ACROSS THE BOARD
 export const getDifficultySettings = (difficulty) => {
   const settings = {
@@ -99,6 +100,7 @@ export const getDifficultySettings = (difficulty) => {
   return settings[difficulty] || settings.medium;
 };
 
+// ===== ENEMY CREATURE GENERATION =====
 // Generate enemy creatures based on difficulty - ENHANCED FOR HARDER GAMEPLAY
 export const generateEnemyCreatures = (difficulty, count = 5, playerCreatures = []) => {
   const settings = getDifficultySettings(difficulty);
@@ -205,7 +207,162 @@ export const generateEnemyCreatures = (difficulty, count = 5, playerCreatures = 
   return creatures;
 };
 
-// Select rarity based on probability distribution
+// ===== ENEMY ITEMS GENERATION =====
+
+/**
+ * Generate enemy tools based on difficulty
+ * @param {string} difficulty - The difficulty level
+ * @param {number} count - Number of tools to generate
+ * @returns {Array} Array of enemy tools
+ */
+export const generateEnemyTools = (difficulty, count = 2) => {
+  const settings = getDifficultySettings(difficulty);
+  const tools = [];
+  
+  // Tool types and effects
+  const toolTypes = ['energy', 'strength', 'magic', 'stamina', 'speed'];
+  const toolEffects = ['Surge', 'Shield', 'Echo', 'Drain', 'Charge'];
+  
+  // Rarity distribution based on difficulty
+  const rarityDistribution = {
+    easy: { Common: 0.8, Rare: 0.2, Epic: 0, Legendary: 0 },
+    medium: { Common: 0.6, Rare: 0.3, Epic: 0.1, Legendary: 0 },
+    hard: { Common: 0.4, Rare: 0.4, Epic: 0.15, Legendary: 0.05 },
+    expert: { Common: 0.2, Rare: 0.4, Epic: 0.3, Legendary: 0.1 }
+  };
+  
+  const distribution = rarityDistribution[difficulty] || rarityDistribution.medium;
+  
+  for (let i = 0; i < count; i++) {
+    // Select random type and effect
+    const toolType = toolTypes[Math.floor(Math.random() * toolTypes.length)];
+    const toolEffect = toolEffects[Math.floor(Math.random() * toolEffects.length)];
+    
+    // Generate rarity
+    const rarity = selectItemRarity(distribution);
+    
+    // Create tool object
+    const tool = {
+      id: `enemy_tool_${Date.now()}_${i}`,
+      name: `${toolEffect} ${toolType.charAt(0).toUpperCase() + toolType.slice(1)} Tool`,
+      tool_type: toolType,
+      tool_effect: toolEffect,
+      rarity: rarity,
+      image_url: `/assets/tools/${toolType}_${toolEffect.toLowerCase()}.png`,
+      description: generateToolDescription(toolType, toolEffect, rarity),
+      // Enhanced properties based on difficulty
+      power_level: calculateItemPowerLevel(rarity, difficulty),
+      usage_cost: calculateItemUsageCost(rarity, difficulty)
+    };
+    
+    tools.push(tool);
+  }
+  
+  return tools;
+};
+
+/**
+ * Generate enemy spells based on difficulty
+ * @param {string} difficulty - The difficulty level
+ * @param {number} count - Number of spells to generate
+ * @returns {Array} Array of enemy spells
+ */
+export const generateEnemySpells = (difficulty, count = 2) => {
+  const settings = getDifficultySettings(difficulty);
+  const spells = [];
+  
+  // Spell types and effects
+  const spellTypes = ['energy', 'strength', 'magic', 'stamina', 'speed'];
+  const spellEffects = ['Surge', 'Shield', 'Echo', 'Drain', 'Charge'];
+  
+  // Rarity distribution (spells are generally rarer than tools)
+  const rarityDistribution = {
+    easy: { Common: 0.7, Rare: 0.25, Epic: 0.05, Legendary: 0 },
+    medium: { Common: 0.5, Rare: 0.35, Epic: 0.13, Legendary: 0.02 },
+    hard: { Common: 0.3, Rare: 0.4, Epic: 0.25, Legendary: 0.05 },
+    expert: { Common: 0.1, Rare: 0.3, Epic: 0.45, Legendary: 0.15 }
+  };
+  
+  const distribution = rarityDistribution[difficulty] || rarityDistribution.medium;
+  
+  for (let i = 0; i < count; i++) {
+    // Select random type and effect
+    const spellType = spellTypes[Math.floor(Math.random() * spellTypes.length)];
+    const spellEffect = spellEffects[Math.floor(Math.random() * spellEffects.length)];
+    
+    // Generate rarity
+    const rarity = selectItemRarity(distribution);
+    
+    // Create spell object
+    const spell = {
+      id: `enemy_spell_${Date.now()}_${i}`,
+      name: `${spellEffect} ${spellType.charAt(0).toUpperCase() + spellType.slice(1)} Spell`,
+      spell_type: spellType,
+      spell_effect: spellEffect,
+      rarity: rarity,
+      image_url: `/assets/spells/${spellType}_${spellEffect.toLowerCase()}.png`,
+      description: generateSpellDescription(spellType, spellEffect, rarity),
+      // Enhanced properties based on difficulty
+      power_level: calculateItemPowerLevel(rarity, difficulty),
+      mana_cost: calculateSpellManaCost(rarity, difficulty),
+      cast_time: calculateSpellCastTime(rarity, difficulty)
+    };
+    
+    spells.push(spell);
+  }
+  
+  return spells;
+};
+
+/**
+ * Generate a balanced set of enemy items (tools and spells)
+ * @param {string} difficulty - The difficulty level
+ * @returns {Object} Object containing tools and spells arrays
+ */
+export const generateEnemyItems = (difficulty) => {
+  const settings = getDifficultySettings(difficulty);
+  
+  // Calculate item counts based on difficulty
+  const itemCounts = {
+    easy: { tools: 1, spells: 0 },     // Easy: Only basic tools
+    medium: { tools: 2, spells: 1 },   // Medium: Tools + some spells
+    hard: { tools: 2, spells: 2 },     // Hard: Balanced tools and spells
+    expert: { tools: 3, spells: 3 }    // Expert: Many powerful items
+  };
+  
+  const counts = itemCounts[difficulty] || itemCounts.medium;
+  
+  return {
+    tools: generateEnemyTools(difficulty, counts.tools),
+    spells: generateEnemySpells(difficulty, counts.spells)
+  };
+};
+
+// ===== COMPREHENSIVE ENEMY GENERATION =====
+
+/**
+ * Generate complete enemy loadout (creatures + items)
+ * @param {string} difficulty - The difficulty level
+ * @param {number} creatureCount - Number of creatures to generate
+ * @param {Array} playerCreatures - Player's creatures for adaptive generation
+ * @returns {Object} Complete enemy loadout with creatures, tools, and spells
+ */
+export const generateCompleteEnemyLoadout = (difficulty, creatureCount, playerCreatures = []) => {
+  const creatures = generateEnemyCreatures(difficulty, creatureCount, playerCreatures);
+  const items = generateEnemyItems(difficulty);
+  
+  return {
+    creatures,
+    tools: items.tools,
+    spells: items.spells,
+    difficulty: difficulty,
+    settings: getDifficultySettings(difficulty)
+  };
+};
+
+// ===== PRIVATE HELPER FUNCTIONS =====
+
+// Select rarity based on probability distribution (for creatures)
 function selectRarity(rarityDistribution) {
   const rnd = Math.random();
   let cumulativeProbability = 0;
@@ -214,6 +371,24 @@ function selectRarity(rarityDistribution) {
     cumulativeProbability += probability;
     if (rnd <= cumulativeProbability) {
       return rarity.charAt(0).toUpperCase() + rarity.slice(1); // Capitalize
+    }
+  }
+  
+  return 'Common'; // Fallback
+}
+
+/**
+ * Select item rarity based on probability distribution (for items)
+ * @private
+ */
+function selectItemRarity(distribution) {
+  const random = Math.random();
+  let cumulative = 0;
+  
+  for (const [rarity, probability] of Object.entries(distribution)) {
+    cumulative += probability;
+    if (random <= cumulative) {
+      return rarity;
     }
   }
   
@@ -363,4 +538,157 @@ function applyCombinationBonuses(creature, combinationLevel) {
   
   // Set the combination level on the creature
   creature.combination_level = combinationLevel;
+}
+
+/**
+ * Calculate item power level based on rarity and difficulty
+ * @private
+ */
+function calculateItemPowerLevel(rarity, difficulty) {
+  let basePower = 1.0;
+  
+  // Rarity multipliers
+  switch (rarity) {
+    case 'Legendary': basePower = 2.0; break;
+    case 'Epic': basePower = 1.7; break;
+    case 'Rare': basePower = 1.4; break;
+    case 'Common': basePower = 1.0; break;
+  }
+  
+  // Difficulty multipliers
+  const difficultyMultipliers = {
+    easy: 0.8,
+    medium: 1.0,
+    hard: 1.3,
+    expert: 1.6
+  };
+  
+  return basePower * (difficultyMultipliers[difficulty] || 1.0);
+}
+
+/**
+ * Calculate item usage cost
+ * @private
+ */
+function calculateItemUsageCost(rarity, difficulty) {
+  let baseCost = 1;
+  
+  switch (rarity) {
+    case 'Legendary': baseCost = 4; break;
+    case 'Epic': baseCost = 3; break;
+    case 'Rare': baseCost = 2; break;
+    case 'Common': baseCost = 1; break;
+  }
+  
+  // Higher difficulties have slightly higher costs to balance power
+  if (difficulty === 'expert') baseCost += 1;
+  else if (difficulty === 'hard') baseCost += 0.5;
+  
+  return Math.max(1, Math.round(baseCost));
+}
+
+/**
+ * Calculate spell mana cost
+ * @private
+ */
+function calculateSpellManaCost(rarity, difficulty) {
+  let baseCost = 2;
+  
+  switch (rarity) {
+    case 'Legendary': baseCost = 6; break;
+    case 'Epic': baseCost = 5; break;
+    case 'Rare': baseCost = 3; break;
+    case 'Common': baseCost = 2; break;
+  }
+  
+  // Difficulty scaling
+  if (difficulty === 'expert') baseCost += 1;
+  else if (difficulty === 'hard') baseCost += 0.5;
+  
+  return Math.max(2, Math.round(baseCost));
+}
+
+/**
+ * Calculate spell cast time
+ * @private
+ */
+function calculateSpellCastTime(rarity, difficulty) {
+  // Cast time in turns (higher rarity = longer cast time but more powerful)
+  switch (rarity) {
+    case 'Legendary': return 2;
+    case 'Epic': return 2;
+    case 'Rare': return 1;
+    case 'Common': return 1;
+    default: return 1;
+  }
+}
+
+/**
+ * Generate tool description
+ * @private
+ */
+function generateToolDescription(toolType, toolEffect, rarity) {
+  const rarityAdjectives = {
+    Common: 'basic',
+    Rare: 'enhanced',
+    Epic: 'powerful',
+    Legendary: 'legendary'
+  };
+  
+  const typeDescriptions = {
+    energy: 'energy manipulation',
+    strength: 'physical enhancement',
+    magic: 'magical amplification',
+    stamina: 'endurance boosting',
+    speed: 'agility enhancement'
+  };
+  
+  const effectDescriptions = {
+    Surge: 'provides a powerful but temporary boost',
+    Shield: 'offers protective enhancement',
+    Echo: 'creates lasting effects over time',
+    Drain: 'converts defensive power to offense',
+    Charge: 'builds up power for devastating results'
+  };
+  
+  const adjective = rarityAdjectives[rarity] || 'basic';
+  const typeDesc = typeDescriptions[toolType] || 'enhancement';
+  const effectDesc = effectDescriptions[toolEffect] || 'enhances abilities';
+  
+  return `A ${adjective} tool for ${typeDesc} that ${effectDesc}.`;
+}
+
+/**
+ * Generate spell description
+ * @private
+ */
+function generateSpellDescription(spellType, spellEffect, rarity) {
+  const rarityAdjectives = {
+    Common: 'minor',
+    Rare: 'potent',
+    Epic: 'devastating',
+    Legendary: 'reality-altering'
+  };
+  
+  const typeDescriptions = {
+    energy: 'energy',
+    strength: 'force',
+    magic: 'arcane',
+    stamina: 'vitality',
+    speed: 'temporal'
+  };
+  
+  const effectDescriptions = {
+    Surge: 'unleashes immediate devastating power',
+    Shield: 'creates protective magical barriers',
+    Echo: 'resonates with lasting magical effects',
+    Drain: 'siphons life force and power',
+    Charge: 'builds magical energy for explosive release'
+  };
+  
+  const adjective = rarityAdjectives[rarity] || 'minor';
+  const typeDesc = typeDescriptions[spellType] || 'magical';
+  const effectDesc = effectDescriptions[spellEffect] || 'affects the target';
+  
+  return `A ${adjective} ${typeDesc} spell that ${effectDesc}.`;
 }
