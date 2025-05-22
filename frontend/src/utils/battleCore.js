@@ -1,6 +1,6 @@
-// src/utils/battleCore.js - ENHANCED FOR MAXIMUM DIFFICULTY AND IMPACT
+// src/utils/battleCore.js - COMPLETE WITH FULL STAT RECALCULATION
 import { getToolEffect, getSpellEffect, calculateEffectPower } from './itemEffects';
-import { calculateDamage } from './battleCalculations';
+import { calculateDamage, calculateDerivedStats, getRarityMultiplier, getFormMultiplier } from './battleCalculations';
 
 // ENHANCED: Get maximum energy with better scaling
 const getMaxEnergy = (creatures, difficulty = 'medium') => {
@@ -20,11 +20,99 @@ const getMaxEnergy = (creatures, difficulty = 'medium') => {
   return baseEnergy + creatureBonus;
 };
 
-// ENHANCED: Helper function to recalculate stats after modifications
+// COMPLETE: Helper function to recalculate stats after modifications
 const recalculateDerivedStats = (creature) => {
-  // For now, return the current stats as we handle modifications differently
-  // In a full implementation, this would recalculate all derived stats
-  return creature.battleStats;
+  // Validate input
+  if (!creature || !creature.stats) {
+    console.error("Cannot recalculate stats for invalid creature:", creature);
+    return creature.battleStats || {};
+  }
+
+  // Use the same calculation logic as the initial stat calculation
+  const freshDerivedStats = calculateDerivedStats(creature);
+  
+  // Apply any active temporary modifications from effects
+  const modifiedStats = { ...freshDerivedStats };
+  
+  if (creature.activeEffects && Array.isArray(creature.activeEffects)) {
+    creature.activeEffects.forEach(effect => {
+      if (effect && effect.statEffect) {
+        Object.entries(effect.statEffect).forEach(([stat, value]) => {
+          if (modifiedStats[stat] !== undefined) {
+            modifiedStats[stat] += value;
+            // Ensure stats don't go below reasonable minimums
+            if (stat.includes('Attack') || stat.includes('Defense')) {
+              modifiedStats[stat] = Math.max(1, modifiedStats[stat]);
+            } else if (stat === 'maxHealth') {
+              modifiedStats[stat] = Math.max(10, modifiedStats[stat]);
+            } else if (stat === 'initiative' || stat.includes('Chance')) {
+              modifiedStats[stat] = Math.max(0, modifiedStats[stat]);
+            }
+          }
+        });
+      }
+    });
+  }
+  
+  // Apply any permanent stat modifications from items, combinations, etc.
+  if (creature.permanentModifications) {
+    Object.entries(creature.permanentModifications).forEach(([stat, value]) => {
+      if (modifiedStats[stat] !== undefined) {
+        modifiedStats[stat] += value;
+      }
+    });
+  }
+  
+  // Apply combination bonuses if present
+  if (creature.combination_level && creature.combination_level > 0) {
+    const combinationMultiplier = 1 + (creature.combination_level * 0.1);
+    
+    // Apply combination bonus to all stats
+    Object.keys(modifiedStats).forEach(stat => {
+      if (typeof modifiedStats[stat] === 'number') {
+        modifiedStats[stat] = Math.round(modifiedStats[stat] * combinationMultiplier);
+      }
+    });
+  }
+  
+  // Apply specialty stat bonuses (these should be recalculated based on current base stats)
+  if (creature.specialty_stats && Array.isArray(creature.specialty_stats)) {
+    const specialtyMultiplier = creature.specialty_stats.length === 1 ? 1.2 : 1.1;
+    
+    creature.specialty_stats.forEach(specialtyStat => {
+      // Apply specialty bonus to related derived stats
+      switch (specialtyStat) {
+        case 'strength':
+          modifiedStats.physicalAttack = Math.round(modifiedStats.physicalAttack * specialtyMultiplier);
+          break;
+        case 'magic':
+          modifiedStats.magicalAttack = Math.round(modifiedStats.magicalAttack * specialtyMultiplier);
+          break;
+        case 'stamina':
+          modifiedStats.physicalDefense = Math.round(modifiedStats.physicalDefense * specialtyMultiplier);
+          modifiedStats.maxHealth = Math.round(modifiedStats.maxHealth * specialtyMultiplier);
+          break;
+        case 'energy':
+          modifiedStats.magicalDefense = Math.round(modifiedStats.magicalDefense * specialtyMultiplier);
+          modifiedStats.energyCost = Math.max(1, Math.round(modifiedStats.energyCost * 0.9));
+          break;
+        case 'speed':
+          modifiedStats.initiative = Math.round(modifiedStats.initiative * specialtyMultiplier);
+          modifiedStats.criticalChance = Math.min(30, Math.round(modifiedStats.criticalChance * specialtyMultiplier));
+          modifiedStats.dodgeChance = Math.min(20, Math.round(modifiedStats.dodgeChance * specialtyMultiplier));
+          break;
+      }
+    });
+  }
+  
+  // Ensure health doesn't exceed max health after recalculation
+  if (creature.currentHealth && creature.currentHealth > modifiedStats.maxHealth) {
+    creature.currentHealth = modifiedStats.maxHealth;
+  }
+  
+  console.log(`Recalculated stats for ${creature.species_name}:`, modifiedStats);
+  
+  return modifiedStats;
 };
 
 // ENHANCED: Get description for effect types with more impact
@@ -271,7 +359,7 @@ export const applyOngoingEffects = (creatures, difficulty = 'medium') => {
   });
 };
 
-// NEW: Process defeated creatures and apply death effects
+// COMPLETE: Process defeated creatures and apply death effects
 const processDefeatedCreatures = (creatures) => {
   const survivingCreatures = [];
   
@@ -286,10 +374,59 @@ const processDefeatedCreatures = (creatures) => {
         survivingCreatures.forEach(ally => {
           ally.battleStats.physicalAttack += 3;
           ally.battleStats.magicalAttack += 3;
+          
+          // Add a temporary effect to track this bonus
+          if (!ally.activeEffects) ally.activeEffects = [];
+          ally.activeEffects.push({
+            id: Date.now() + Math.random(),
+            name: `${creature.species_name}'s Final Gift`,
+            icon: '👑',
+            type: 'legendary_blessing',
+            description: 'Empowered by a fallen legendary creature',
+            duration: 999, // Permanent for this battle
+            statEffect: {
+              physicalAttack: 3,
+              magicalAttack: 3
+            }
+          });
         });
       } else if (creature.specialty_stats && creature.specialty_stats.includes('energy')) {
         console.log(`Energy specialist ${creature.species_name} was defeated! Releasing stored energy!`);
-        // Energy burst - could restore energy to player/AI
+        // Energy burst - restore energy to allies
+        survivingCreatures.forEach(ally => {
+          if (!ally.activeEffects) ally.activeEffects = [];
+          ally.activeEffects.push({
+            id: Date.now() + Math.random(),
+            name: 'Energy Release',
+            icon: '⚡',
+            type: 'energy_burst',
+            description: 'Energized by released power',
+            duration: 3,
+            statEffect: {
+              energyCost: -1 // Reduced energy costs
+            }
+          });
+        });
+      } else if (creature.rarity === 'Epic') {
+        console.log(`Epic creature ${creature.species_name} was defeated! Their essence lingers!`);
+        // Epic death effect - minor stat boost to allies
+        survivingCreatures.forEach(ally => {
+          if (!ally.activeEffects) ally.activeEffects = [];
+          ally.activeEffects.push({
+            id: Date.now() + Math.random(),
+            name: 'Epic Essence',
+            icon: '💜',
+            type: 'epic_blessing',
+            description: 'Blessed by epic essence',
+            duration: 5,
+            statEffect: {
+              physicalAttack: 1,
+              magicalAttack: 1,
+              physicalDefense: 1,
+              magicalDefense: 1
+            }
+          });
+        });
       }
     }
   });
@@ -515,6 +652,9 @@ export const applyTool = (creature, tool, difficulty = 'medium') => {
     console.log(`${tool.name} healed ${creatureClone.species_name} for ${actualHealing} health`);
   }
   
+  // Recalculate derived stats after tool application
+  creatureClone.battleStats = recalculateDerivedStats(creatureClone);
+  
   return {
     updatedCreature: creatureClone,
     toolEffect: scaledToolEffect
@@ -661,6 +801,11 @@ export const applySpell = (caster, target, spell, difficulty = 'medium') => {
     ];
   }
   
+  // Recalculate derived stats after spell effects
+  if (Object.keys(scaledSpellEffect.statChanges || {}).length > 0) {
+    targetClone.battleStats = recalculateDerivedStats(targetClone);
+  }
+  
   return {
     updatedCaster: casterClone,
     updatedTarget: targetClone,
@@ -724,6 +869,9 @@ export const defendCreature = (creature, difficulty = 'medium') => {
       counterAttackChance: difficulty === 'expert' ? 0.2 : 0.1 // Chance to counter-attack
     }
   ];
+  
+  // Recalculate stats after defense bonuses
+  creatureClone.battleStats = recalculateDerivedStats(creatureClone);
   
   return creatureClone;
 };
