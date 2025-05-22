@@ -1,4 +1,4 @@
-// src/components/battle/CreatureCard.jsx - NFT-FOCUSED VERSION
+// src/components/battle/CreatureCard.jsx - IMAGE-FOCUSED VERSION
 import React, { useState } from 'react';
 import { getFormDescription } from '../../utils/creatureHelpers';
 import { getRarityColor } from '../../utils/uiHelpers';
@@ -64,7 +64,15 @@ const CreatureCard = ({
   
   return (
     <div className={cardClasses} onClick={onClick}>
-      {/* Redesigned to make the image more prominent */}
+      {/* Card header - outside the image area */}
+      <div className="creature-card-header" style={{ 
+        backgroundColor: getRarityColor(creature.rarity) + '99',
+      }}>
+        <span className="creature-name">{creature.species_name || 'Unknown'}</span>
+        <span className="creature-form">{getFormDescription(form)}</span>
+      </div>
+
+      {/* Enlarged image container - taking ~75% of card height */}
       <div className="creature-image-container">
         <img 
           src={creature.image_url || getPlaceholderForForm(form)} 
@@ -73,16 +81,6 @@ const CreatureCard = ({
           onError={handleImageError}
           onLoad={() => setImageLoaded(true)}
         />
-        
-        {/* Info overlay - semi-transparent to keep focus on NFT image */}
-        <div className="creature-info-overlay">
-          <div className="creature-name-tag" style={{ 
-            backgroundColor: getRarityColor(creature.rarity) + '99',
-          }}>
-            <span className="creature-name">{creature.species_name || 'Unknown'}</span>
-            <span className="creature-form">{getFormDescription(form)}</span>
-          </div>
-        </div>
         
         {/* Status effects */}
         {activeEffects && activeEffects.length > 0 && (
@@ -107,36 +105,32 @@ const CreatureCard = ({
         )}
       </div>
       
-      {/* Health bar */}
-      <div className="health-bar-container">
-        <div className="health-bar" style={{ width: `${healthPercentage}%` }} />
-        <span className="health-text">
-          {currentHealth}/{maxHealth}
-        </span>
-      </div>
-      
-      {/* Compact stat display - MINIMIZED */}
-      <div className="stats-container compact">
-        <div className="stat-row">
-          <div className={`stat ${isPrimaryPhysical ? 'primary' : 'secondary'}`}>
-            <span className="stat-icon">⚔️</span>
-            <span className="stat-value">{physicalAttack}</span>
+      {/* Compact footer with health bar and mini-stats */}
+      <div className="creature-card-footer">
+        {/* Health bar */}
+        <div className="health-bar-container">
+          <div className="health-bar" style={{ width: `${healthPercentage}%` }} />
+          <span className="health-text">
+            {currentHealth}/{maxHealth}
+          </span>
+        </div>
+        
+        {/* Ultra-compact mini-stats */}
+        <div className="mini-stats">
+          <div className={`mini-stat ${isPrimaryPhysical ? 'primary' : ''}`}>
+            ⚔️{physicalAttack}
           </div>
-          <div className={`stat ${!isPrimaryPhysical ? 'primary' : 'secondary'}`}>
-            <span className="stat-icon">✨</span>
-            <span className="stat-value">{magicalAttack}</span>
+          <div className={`mini-stat ${!isPrimaryPhysical ? 'primary' : ''}`}>
+            ✨{magicalAttack}
           </div>
-          <div className="stat">
-            <span className="stat-icon">🛡️</span>
-            <span className="stat-value">{physicalDefense}</span>
+          <div className="mini-stat">
+            🛡️{physicalDefense}
           </div>
-          <div className="stat">
-            <span className="stat-icon">🔮</span>
-            <span className="stat-value">{magicalDefense}</span>
+          <div className="mini-stat">
+            🔮{magicalDefense}
           </div>
-          <div className="stat">
-            <span className="stat-icon">⚡</span>
-            <span className="stat-value">{initiative}</span>
+          <div className="mini-stat">
+            ⚡{initiative}
           </div>
         </div>
       </div>
