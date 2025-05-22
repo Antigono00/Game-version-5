@@ -2811,6 +2811,9 @@ const BattleGame = ({ onClose }) => {
               onSelectCard={handleSelectCard}
               disabled={activePlayer !== 'player' || actionInProgress}
               selectedCreature={selectedCreature}
+              selectedCardId={selectedCreature?.id} // Pass selected card ID
+              hasFieldSelection={selectedCreature && playerField.some(c => c.id === selectedCreature.id)} // Pass if battlefield card is selected
+              hasHandSelection={selectedCreature && playerHand.some(c => c.id === selectedCreature.id)} // Pass if hand card is selected
             />
             
             <ActionPanel 
