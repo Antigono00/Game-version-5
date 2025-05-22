@@ -1,94 +1,170 @@
-// src/utils/battleCore.js - FIXED VERSION
-import { getToolEffect, getSpellEffect } from './itemEffects';
+// src/utils/battleCore.js - ENHANCED FOR MAXIMUM DIFFICULTY AND IMPACT
+import { getToolEffect, getSpellEffect, calculateEffectPower } from './itemEffects';
 import { calculateDamage } from './battleCalculations';
 
-// Get maximum energy based on creature stats
-const getMaxEnergy = (creatures) => {
-  const baseEnergy = 15;
-  return baseEnergy;
+// ENHANCED: Get maximum energy with better scaling
+const getMaxEnergy = (creatures, difficulty = 'medium') => {
+  let baseEnergy = 20; // INCREASED from 15 to 20
+  
+  // Difficulty-based energy scaling
+  switch (difficulty) {
+    case 'easy': baseEnergy = 18; break;
+    case 'medium': baseEnergy = 20; break;
+    case 'hard': baseEnergy = 22; break;
+    case 'expert': baseEnergy = 25; break;
+  }
+  
+  // Additional energy from creature count
+  const creatureBonus = Math.floor(creatures.length * 0.5);
+  
+  return baseEnergy + creatureBonus;
 };
 
-// Helper function to recalculate stats after modifications
+// ENHANCED: Helper function to recalculate stats after modifications
 const recalculateDerivedStats = (creature) => {
-  // Return the current stats if no modification is needed
+  // For now, return the current stats as we handle modifications differently
+  // In a full implementation, this would recalculate all derived stats
   return creature.battleStats;
 };
 
-// Get description for effect types
-const getEffectDescription = (effectType) => {
-  switch (effectType) {
-    case 'Surge': return 'Powerful but short-lived boost';
-    case 'Shield': return 'Defensive protection';
-    case 'Echo': return 'Repeating effect with longer duration';
-    case 'Drain': return 'Converts defensive stats to offense';
-    case 'Charge': return 'Builds up power over time';
-    default: return 'Enhances creature abilities';
-  }
+// ENHANCED: Get description for effect types with more impact
+const getEffectDescription = (effectType, powerLevel = 'normal') => {
+  const descriptions = {
+    'Surge': {
+      'weak': 'Minor surge of power',
+      'normal': 'Powerful surge of enhanced abilities',
+      'strong': 'Devastating surge of overwhelming power',
+      'maximum': 'Cataclysmic surge of ultimate power'
+    },
+    'Shield': {
+      'weak': 'Basic protective barrier',
+      'normal': 'Strong defensive enhancement',
+      'strong': 'Impenetrable defensive fortress',
+      'maximum': 'Absolute defensive supremacy'
+    },
+    'Echo': {
+      'weak': 'Faint repeating effect',
+      'normal': 'Resonating effect with extended duration',
+      'strong': 'Powerful echoing enhancement',
+      'maximum': 'Reality-bending echoing phenomenon'
+    },
+    'Drain': {
+      'weak': 'Minor energy drain',
+      'normal': 'Significant power absorption',
+      'strong': 'Devastating life force drain',
+      'maximum': 'Soul-crushing energy vampirism'
+    },
+    'Charge': {
+      'weak': 'Slow power buildup',
+      'normal': 'Steady accumulation of strength',
+      'strong': 'Explosive power concentration',
+      'maximum': 'Universe-shaking power convergence'
+    }
+  };
+  
+  return descriptions[effectType]?.[powerLevel] || `Enhanced ${effectType.toLowerCase()} effect`;
 };
 
-// Process a full turn of battle
-export const processTurn = (gameState) => {
+// ENHANCED: Process a full turn of battle with more aggressive mechanics
+export const processTurn = (gameState, difficulty = 'medium') => {
   const newState = {...gameState};
   
-  // Regenerate energy
+  // ENHANCED: Energy regeneration with difficulty scaling
+  const maxPlayerEnergy = getMaxEnergy(newState.playerField, difficulty);
+  const maxEnemyEnergy = getMaxEnergy(newState.enemyField, difficulty);
+  
   newState.playerEnergy = Math.min(
-    newState.playerEnergy + calculateEnergyRegen(newState.playerField),
-    getMaxEnergy(newState.playerField)
+    newState.playerEnergy + calculateEnergyRegen(newState.playerField, difficulty),
+    maxPlayerEnergy
   );
   
   newState.enemyEnergy = Math.min(
-    newState.enemyEnergy + calculateEnergyRegen(newState.enemyField),
-    getMaxEnergy(newState.enemyField)
+    newState.enemyEnergy + calculateEnergyRegen(newState.enemyField, difficulty),
+    maxEnemyEnergy
   );
   
-  // Apply ongoing effects (buffs/debuffs)
-  newState.playerField = applyOngoingEffects(newState.playerField);
-  newState.enemyField = applyOngoingEffects(newState.enemyField);
+  // ENHANCED: Apply ongoing effects with more dramatic results
+  newState.playerField = applyOngoingEffects(newState.playerField, difficulty);
+  newState.enemyField = applyOngoingEffects(newState.enemyField, difficulty);
   
-  // Remove defeated creatures
-  newState.playerField = newState.playerField.filter(creature => creature.currentHealth > 0);
-  newState.enemyField = newState.enemyField.filter(creature => creature.currentHealth > 0);
+  // Remove defeated creatures with death effects
+  newState.playerField = processDefeatedCreatures(newState.playerField);
+  newState.enemyField = processDefeatedCreatures(newState.enemyField);
   
-  // Process draw phase
-  if (newState.playerHand.length < getMaxHandSize(newState.difficulty)) {
-    // Draw a card if possible
-    if (newState.playerDeck.length > 0) {
-      const drawnCard = newState.playerDeck[0];
-      newState.playerHand.push(drawnCard);
-      newState.playerDeck = newState.playerDeck.slice(1);
-    }
+  // ENHANCED: Process draw phase with difficulty-based hand limits
+  const maxHandSize = getMaxHandSize(difficulty);
+  
+  if (newState.playerHand.length < maxHandSize && newState.playerDeck.length > 0) {
+    const drawnCard = newState.playerDeck[0];
+    newState.playerHand.push(drawnCard);
+    newState.playerDeck = newState.playerDeck.slice(1);
+  }
+  
+  if (newState.enemyHand.length < maxHandSize && newState.enemyDeck.length > 0) {
+    const drawnCard = newState.enemyDeck[0];
+    newState.enemyHand.push(drawnCard);
+    newState.enemyDeck = newState.enemyDeck.slice(1);
   }
   
   return newState;
 };
 
-// Calculate energy regeneration based on creature energy stats
-export const calculateEnergyRegen = (creatures) => {
-  let baseRegen = 3; // Base regen per turn
+// ENHANCED: Calculate energy regeneration with more complex scaling
+export const calculateEnergyRegen = (creatures, difficulty = 'medium') => {
+  let baseRegen = 4; // INCREASED from 3
   
-  // Add energy contributions from creatures
+  // Difficulty-based base regen
+  switch (difficulty) {
+    case 'easy': baseRegen = 3; break;
+    case 'medium': baseRegen = 4; break;
+    case 'hard': baseRegen = 5; break;
+    case 'expert': baseRegen = 6; break;
+  }
+  
+  // ENHANCED: Energy contributions from creatures with better scaling
   const energyContribution = creatures.reduce((total, creature) => {
-    // Make sure stats exist
     if (!creature.stats || !creature.stats.energy) return total;
-    return total + (creature.stats.energy * 0.5);
+    
+    // Base energy contribution
+    let contribution = creature.stats.energy * 0.3; // INCREASED from 0.5
+    
+    // Rarity bonuses
+    switch (creature.rarity) {
+      case 'Legendary': contribution *= 1.5; break;
+      case 'Epic': contribution *= 1.3; break;
+      case 'Rare': contribution *= 1.1; break;
+    }
+    
+    // Form bonuses
+    contribution *= (1 + (creature.form || 0) * 0.1);
+    
+    return total + contribution;
   }, 0);
   
-  return Math.round(baseRegen + energyContribution);
+  // Specialty stat bonuses
+  const specialtyBonus = creatures.reduce((total, creature) => {
+    if (creature.specialty_stats && creature.specialty_stats.includes('energy')) {
+      return total + 1; // +1 energy per energy specialist
+    }
+    return total;
+  }, 0);
+  
+  return Math.round(baseRegen + energyContribution + specialtyBonus);
 };
 
-// Get max hand size based on difficulty
+// ENHANCED: Get max hand size based on difficulty with better scaling
 export const getMaxHandSize = (difficulty) => {
   switch (difficulty) {
-    case 'easy': return 5;
-    case 'medium': return 4;
-    case 'hard': return 3;
-    case 'expert': return 3;
+    case 'easy': return 6;   // INCREASED from 5
+    case 'medium': return 5; // INCREASED from 4
+    case 'hard': return 4;   // INCREASED from 3
+    case 'expert': return 4; // INCREASED from 3
     default: return 5;
   }
 };
 
-// Apply creature effects and reduce their duration
-export const applyOngoingEffects = (creatures) => {
+// ENHANCED: Apply creature effects with much more dramatic results
+export const applyOngoingEffects = (creatures, difficulty = 'medium') => {
   if (!creatures || !Array.isArray(creatures)) {
     console.error("Invalid creatures array:", creatures);
     return [];
@@ -101,28 +177,72 @@ export const applyOngoingEffects = (creatures) => {
     const updatedCreature = {...creature};
     let statsModified = false;
     
-    // Process active effects
+    // ENHANCED: Process active effects with more impact
     updatedCreature.activeEffects = (updatedCreature.activeEffects || [])
       .map(effect => {
         // Skip effects with missing data
         if (!effect) return null;
         
-        // Apply effect to stats
+        // ENHANCED: Apply stat effects with difficulty scaling
         if (effect.statEffect) {
           Object.entries(effect.statEffect).forEach(([stat, value]) => {
             if (updatedCreature.battleStats[stat] !== undefined) {
-              updatedCreature.battleStats[stat] += value;
+              // Scale effect value by difficulty
+              let scaledValue = value;
+              switch (difficulty) {
+                case 'hard': scaledValue = Math.round(value * 1.2); break;
+                case 'expert': scaledValue = Math.round(value * 1.4); break;
+              }
+              
+              updatedCreature.battleStats[stat] += scaledValue;
               statsModified = true;
             }
           });
         }
         
-        // Apply health effects (healing or damage over time)
+        // ENHANCED: Health effects with more dramatic scaling
         if (effect.healthEffect) {
+          let healthChange = effect.healthEffect;
+          
+          // Scale health effects by difficulty and creature rarity
+          switch (difficulty) {
+            case 'hard': healthChange = Math.round(healthChange * 1.3); break;
+            case 'expert': healthChange = Math.round(healthChange * 1.5); break;
+          }
+          
+          // Rarity scaling
+          switch (updatedCreature.rarity) {
+            case 'Legendary': healthChange = Math.round(healthChange * 1.3); break;
+            case 'Epic': healthChange = Math.round(healthChange * 1.2); break;
+            case 'Rare': healthChange = Math.round(healthChange * 1.1); break;
+          }
+          
+          const previousHealth = updatedCreature.currentHealth;
           updatedCreature.currentHealth = Math.min(
-            updatedCreature.currentHealth + effect.healthEffect,
-            updatedCreature.battleStats.maxHealth
+            updatedCreature.battleStats.maxHealth,
+            Math.max(0, updatedCreature.currentHealth + healthChange)
           );
+          
+          // Log significant health changes
+          const actualChange = updatedCreature.currentHealth - previousHealth;
+          if (Math.abs(actualChange) >= 5) { // Only log significant changes
+            console.log(`${updatedCreature.species_name} ${actualChange > 0 ? 'healed' : 'damaged'} for ${Math.abs(actualChange)} (${effect.name})`);
+          }
+        }
+        
+        // ENHANCED: Process special effect types
+        if (effect.type === 'charge' && effect.chargeEffect) {
+          // Charge effects get stronger over time
+          const remainingTurns = effect.duration;
+          const totalTurns = effect.chargeEffect.maxTurns || 3;
+          const chargeProgress = (totalTurns - remainingTurns) / totalTurns;
+          
+          if (chargeProgress >= 1.0 && effect.chargeEffect.finalBurst) {
+            // Apply final burst effect
+            const burstDamage = effect.chargeEffect.finalBurst;
+            updatedCreature.nextAttackBonus = (updatedCreature.nextAttackBonus || 0) + burstDamage;
+            console.log(`${updatedCreature.species_name} charged effect ready! Next attack gains ${burstDamage} damage.`);
+          }
         }
         
         // Reduce duration
@@ -133,16 +253,51 @@ export const applyOngoingEffects = (creatures) => {
       })
       .filter(effect => effect && effect.duration > 0); // Remove expired or invalid effects
     
-    // If stats were modified, recalculate derived stats
+    // ENHANCED: If stats were modified, recalculate derived stats
     if (statsModified) {
       updatedCreature.battleStats = recalculateDerivedStats(updatedCreature);
+    }
+    
+    // Process special creature states
+    if (updatedCreature.isDefending) {
+      // Defending creatures get additional bonuses in higher difficulties
+      if (difficulty === 'hard' || difficulty === 'expert') {
+        updatedCreature.battleStats.physicalDefense += 2;
+        updatedCreature.battleStats.magicalDefense += 2;
+      }
     }
     
     return updatedCreature;
   });
 };
 
-// Process attack action
+// NEW: Process defeated creatures and apply death effects
+const processDefeatedCreatures = (creatures) => {
+  const survivingCreatures = [];
+  
+  creatures.forEach(creature => {
+    if (creature.currentHealth > 0) {
+      survivingCreatures.push(creature);
+    } else {
+      // Apply death effects based on creature properties
+      if (creature.rarity === 'Legendary') {
+        console.log(`${creature.species_name} (Legendary) was defeated! Their sacrifice empowers allies!`);
+        // Death rattle effect - empower remaining creatures
+        survivingCreatures.forEach(ally => {
+          ally.battleStats.physicalAttack += 3;
+          ally.battleStats.magicalAttack += 3;
+        });
+      } else if (creature.specialty_stats && creature.specialty_stats.includes('energy')) {
+        console.log(`Energy specialist ${creature.species_name} was defeated! Releasing stored energy!`);
+        // Energy burst - could restore energy to player/AI
+      }
+    }
+  });
+  
+  return survivingCreatures;
+};
+
+// ENHANCED: Process attack action with more aggressive mechanics
 export const processAttack = (attacker, defender, attackType = 'auto') => {
   // Validate input
   if (!attacker || !defender || !attacker.battleStats || !defender.battleStats) {
@@ -155,8 +310,8 @@ export const processAttack = (attacker, defender, attackType = 'auto') => {
   }
   
   // Clone creatures to avoid mutating original objects
-  const attackerClone = {...attacker};
-  const defenderClone = {...defender};
+  const attackerClone = JSON.parse(JSON.stringify(attacker));
+  const defenderClone = JSON.parse(JSON.stringify(defender));
   
   // Determine attack type if set to auto
   if (attackType === 'auto') {
@@ -165,24 +320,79 @@ export const processAttack = (attacker, defender, attackType = 'auto') => {
       : 'magical';
   }
   
-  // Calculate damage
-  const damageResult = calculateDamage(attackerClone, defenderClone, attackType);
-  
-  // Apply damage to defender
-  if (!damageResult.isDodged) {
-    defenderClone.currentHealth = Math.max(0, defenderClone.currentHealth - damageResult.damage);
+  // ENHANCED: Apply charge bonuses if available
+  if (attackerClone.nextAttackBonus) {
+    if (attackType === 'physical') {
+      attackerClone.battleStats.physicalAttack += attackerClone.nextAttackBonus;
+    } else {
+      attackerClone.battleStats.magicalAttack += attackerClone.nextAttackBonus;
+    }
+    // Consume the bonus
+    delete attackerClone.nextAttackBonus;
+    console.log(`${attackerClone.species_name} unleashes charged attack!`);
   }
   
-  // Create battle log entry
+  // ENHANCED: Calculate damage with improved system
+  const damageResult = calculateDamage(attackerClone, defenderClone, attackType);
+  
+  // ENHANCED: Apply damage with additional effects
+  if (!damageResult.isDodged) {
+    // Base damage
+    defenderClone.currentHealth = Math.max(0, defenderClone.currentHealth - damageResult.damage);
+    
+    // ENHANCED: Critical hit effects
+    if (damageResult.isCritical) {
+      // Critical hits may apply additional effects
+      if (Math.random() < 0.3) { // 30% chance for bonus effect
+        const bonusEffect = {
+          id: Date.now(),
+          name: 'Critical Strike Trauma',
+          icon: '💥',
+          type: 'debuff',
+          description: 'Suffering from critical strike trauma',
+          duration: 2,
+          statEffect: {
+            physicalDefense: -3,
+            magicalDefense: -3
+          }
+        };
+        
+        defenderClone.activeEffects = [...(defenderClone.activeEffects || []), bonusEffect];
+      }
+    }
+    
+    // ENHANCED: Effectiveness bonuses
+    if (damageResult.effectiveness === 'super effective' || damageResult.effectiveness === 'extremely effective') {
+      // Super effective attacks may cause additional effects
+      if (Math.random() < 0.4) { // 40% chance for status effect
+        const statusEffect = {
+          id: Date.now() + 1,
+          name: 'Elemental Weakness',
+          icon: '⚡',
+          type: 'debuff',
+          description: 'Vulnerable to elemental damage',
+          duration: 3,
+          statEffect: {
+            physicalDefense: -2,
+            magicalDefense: -2
+          }
+        };
+        
+        defenderClone.activeEffects = [...(defenderClone.activeEffects || []), statusEffect];
+      }
+    }
+  }
+  
+  // ENHANCED: Create detailed battle log entry
   let logMessage = '';
   
   if (damageResult.isDodged) {
-    logMessage = `${attackerClone.species_name}'s attack was dodged by ${defenderClone.species_name}!`;
+    logMessage = `${attackerClone.species_name}'s ${attackType} attack was skillfully dodged by ${defenderClone.species_name}!`;
   } else {
-    logMessage = `${attackerClone.species_name} used ${attackType} attack on ${defenderClone.species_name}`;
+    logMessage = `${attackerClone.species_name} unleashed a ${attackType} attack on ${defenderClone.species_name}`;
     
     if (damageResult.isCritical) {
-      logMessage += ' (Critical Hit!)';
+      logMessage += ' with devastating precision (Critical Hit!)';
     }
     
     if (damageResult.effectiveness !== 'normal') {
@@ -191,8 +401,19 @@ export const processAttack = (attacker, defender, attackType = 'auto') => {
     
     logMessage += ` dealing ${damageResult.damage} damage.`;
     
+    // Death message
     if (defenderClone.currentHealth <= 0) {
-      logMessage += ` ${defenderClone.species_name} was defeated!`;
+      if (defenderClone.rarity === 'Legendary') {
+        logMessage += ` ${defenderClone.species_name} falls in legendary fashion!`;
+      } else if (defenderClone.rarity === 'Epic') {
+        logMessage += ` ${defenderClone.species_name} has been epically defeated!`;
+      } else {
+        logMessage += ` ${defenderClone.species_name} was defeated!`;
+      }
+    } else if (defenderClone.currentHealth < defenderClone.battleStats.maxHealth * 0.2) {
+      logMessage += ` ${defenderClone.species_name} is critically wounded!`;
+    } else if (defenderClone.currentHealth < defenderClone.battleStats.maxHealth * 0.5) {
+      logMessage += ` ${defenderClone.species_name} is badly hurt!`;
     }
   }
   
@@ -204,8 +425,8 @@ export const processAttack = (attacker, defender, attackType = 'auto') => {
   };
 };
 
-// Apply tool effect to creature - FIXED
-export const applyTool = (creature, tool) => {
+// ENHANCED: Apply tool effect with much more impact
+export const applyTool = (creature, tool, difficulty = 'medium') => {
   // Validate input
   if (!creature || !tool) {
     console.error("Tool application failed - missing creature or tool:", { creature, tool });
@@ -215,7 +436,6 @@ export const applyTool = (creature, tool) => {
     };
   }
   
-  // Make sure creature has required properties
   if (!creature.battleStats) {
     console.error("Tool application failed - creature missing battleStats:", creature);
     return {
@@ -227,10 +447,10 @@ export const applyTool = (creature, tool) => {
   // Make a deep copy of the creature to avoid mutations
   const creatureClone = JSON.parse(JSON.stringify(creature));
   
-  // Different effects based on tool type and effect
+  // ENHANCED: Get tool effect with power scaling
+  const basePowerMultiplier = calculateEffectPower(tool, creature.stats, difficulty);
   const toolEffect = getToolEffect(tool);
   
-  // Check if we got valid toolEffect
   if (!toolEffect) {
     console.error("Tool application failed - invalid tool effect:", { tool, toolEffect });
     return {
@@ -239,56 +459,70 @@ export const applyTool = (creature, tool) => {
     };
   }
   
-  // Apply stat changes safely
-  if (toolEffect.statChanges && typeof toolEffect.statChanges === 'object') {
-    // Only proceed if statChanges is a valid object
-    creatureClone.battleStats = {
-      ...creatureClone.battleStats,
-      ...Object.entries(toolEffect.statChanges).reduce((acc, [stat, value]) => {
-        if (creatureClone.battleStats[stat] !== undefined) {
-          acc[stat] = creatureClone.battleStats[stat] + value;
-        } else {
-          // Handle missing stats gracefully
-          acc[stat] = value;
-        }
+  // ENHANCED: Scale effects by power multiplier
+  const scaledToolEffect = {
+    ...toolEffect,
+    statChanges: toolEffect.statChanges ? 
+      Object.entries(toolEffect.statChanges).reduce((acc, [stat, value]) => {
+        acc[stat] = Math.round(value * basePowerMultiplier);
         return acc;
-      }, {})
-    };
+      }, {}) : {},
+    healthChange: toolEffect.healthChange ? 
+      Math.round(toolEffect.healthChange * basePowerMultiplier) : 0,
+    duration: toolEffect.duration || 1
+  };
+  
+  // ENHANCED: Apply stat changes with validation
+  if (scaledToolEffect.statChanges && typeof scaledToolEffect.statChanges === 'object') {
+    Object.entries(scaledToolEffect.statChanges).forEach(([stat, value]) => {
+      if (creatureClone.battleStats[stat] !== undefined) {
+        creatureClone.battleStats[stat] = Math.max(0, creatureClone.battleStats[stat] + value);
+      }
+    });
   }
   
-  // Add active effect if it has a duration
-  if (toolEffect.duration > 0) {
+  // ENHANCED: Add active effect with better tracking
+  if (scaledToolEffect.duration > 0) {
+    const powerLevel = basePowerMultiplier >= 1.4 ? 'maximum' :
+                     basePowerMultiplier >= 1.2 ? 'strong' :
+                     basePowerMultiplier >= 1.0 ? 'normal' : 'weak';
+    
     creatureClone.activeEffects = [
       ...(creatureClone.activeEffects || []),
       {
         id: Date.now() + Math.random(),
-        name: tool.name || "Tool Effect",
-        icon: '🔧',
-        type: tool.tool_type || "effect",
-        description: getEffectDescription(tool.tool_effect || "effect"),
-        duration: toolEffect.duration,
-        statEffect: toolEffect.statChanges || {},
-        healthEffect: toolEffect.healthChange || 0
+        name: `${tool.name || "Enhanced Tool"} Effect`,
+        icon: getToolIcon(tool.tool_effect),
+        type: tool.tool_type || "enhancement",
+        description: getEffectDescription(tool.tool_effect || "enhancement", powerLevel),
+        duration: scaledToolEffect.duration,
+        statEffect: scaledToolEffect.statChanges || {},
+        healthEffect: scaledToolEffect.healthChange || 0,
+        powerLevel: powerLevel
       }
     ];
   }
   
-  // Apply healing effect if applicable
-  if (toolEffect.healthChange && toolEffect.healthChange > 0) {
+  // ENHANCED: Apply healing with scaling
+  if (scaledToolEffect.healthChange && scaledToolEffect.healthChange > 0) {
+    const oldHealth = creatureClone.currentHealth;
     creatureClone.currentHealth = Math.min(
-      creatureClone.currentHealth + toolEffect.healthChange,
+      creatureClone.currentHealth + scaledToolEffect.healthChange,
       creatureClone.battleStats.maxHealth
     );
+    
+    const actualHealing = creatureClone.currentHealth - oldHealth;
+    console.log(`${tool.name} healed ${creatureClone.species_name} for ${actualHealing} health`);
   }
   
   return {
     updatedCreature: creatureClone,
-    toolEffect
+    toolEffect: scaledToolEffect
   };
 };
 
-// Apply spell effect to creature - FIXED
-export const applySpell = (caster, target, spell) => {
+// ENHANCED: Apply spell effect with devastating power
+export const applySpell = (caster, target, spell, difficulty = 'medium') => {
   // Validate input
   if (!caster || !target || !spell) {
     console.error("Spell application failed - missing parameters:", { caster, target, spell });
@@ -299,7 +533,6 @@ export const applySpell = (caster, target, spell) => {
     };
   }
   
-  // Make sure creatures have required properties
   if (!caster.stats || !target.battleStats) {
     console.error("Spell application failed - missing stats:", { 
       casterStats: caster.stats, 
@@ -316,10 +549,11 @@ export const applySpell = (caster, target, spell) => {
   const targetClone = JSON.parse(JSON.stringify(target));
   const casterClone = JSON.parse(JSON.stringify(caster));
   
-  // Get spell effect with proper magic scaling
-  const spellEffect = getSpellEffect(spell, caster.stats.magic || 5);
+  // ENHANCED: Get spell effect with power scaling based on caster's magic and difficulty
+  const casterMagic = caster.stats.magic || 5;
+  const basePowerMultiplier = calculateEffectPower(spell, caster.stats, difficulty);
+  const spellEffect = getSpellEffect(spell, casterMagic);
   
-  // Safety check for spellEffect
   if (!spellEffect) {
     console.error("Spell application failed - invalid spell effect:", { spell, spellEffect });
     return {
@@ -329,52 +563,100 @@ export const applySpell = (caster, target, spell) => {
     };
   }
   
-  // Apply direct damage if applicable (IMPROVED DAMAGE EFFECTS)
-  if (spellEffect.damage) {
-    console.log(`Applying spell damage: ${spellEffect.damage} to ${targetClone.species_name}`);
-    targetClone.currentHealth = Math.max(0, targetClone.currentHealth - spellEffect.damage);
+  // ENHANCED: Scale spell effects by power multiplier
+  const scaledSpellEffect = {
+    ...spellEffect,
+    damage: spellEffect.damage ? Math.round(spellEffect.damage * basePowerMultiplier) : 0,
+    healing: spellEffect.healing ? Math.round(spellEffect.healing * basePowerMultiplier) : 0,
+    selfHeal: spellEffect.selfHeal ? Math.round(spellEffect.selfHeal * basePowerMultiplier) : 0,
+    statChanges: spellEffect.statChanges ? 
+      Object.entries(spellEffect.statChanges).reduce((acc, [stat, value]) => {
+        acc[stat] = Math.round(value * basePowerMultiplier);
+        return acc;
+      }, {}) : {}
+  };
+  
+  // ENHANCED: Apply direct damage with critical chance
+  if (scaledSpellEffect.damage) {
+    let finalDamage = scaledSpellEffect.damage;
+    
+    // Spell critical hits based on caster's magic
+    const critChance = Math.min(5 + Math.floor(casterMagic * 0.5), 25);
+    const isCritical = Math.random() * 100 <= critChance;
+    
+    if (isCritical) {
+      finalDamage = Math.round(finalDamage * 1.8); // INCREASED crit multiplier
+      console.log(`${spell.name} critical hit! Damage increased to ${finalDamage}`);
+    }
+    
+    // Apply armor piercing for high-level spells
+    if (scaledSpellEffect.armorPiercing || basePowerMultiplier >= 1.3) {
+      // Ignore 30% of target's defenses
+      const defenseMitigation = Math.round(finalDamage * 0.3);
+      finalDamage += defenseMitigation;
+      console.log(`Spell pierces armor for additional ${defenseMitigation} damage`);
+    }
+    
+    console.log(`Applying spell damage: ${finalDamage} to ${targetClone.species_name}`);
+    targetClone.currentHealth = Math.max(0, targetClone.currentHealth - finalDamage);
+    
+    // Update the effect with actual damage dealt
+    scaledSpellEffect.actualDamage = finalDamage;
+    scaledSpellEffect.wasCritical = isCritical;
   }
   
-  // Apply healing if applicable
-  if (spellEffect.healing) {
-    console.log(`Applying spell healing: ${spellEffect.healing} to ${targetClone.species_name}`);
+  // ENHANCED: Apply healing effects
+  if (scaledSpellEffect.healing && caster.id === target.id) {
+    const oldHealth = targetClone.currentHealth;
     targetClone.currentHealth = Math.min(
-      targetClone.currentHealth + spellEffect.healing,
+      targetClone.currentHealth + scaledSpellEffect.healing,
       targetClone.battleStats.maxHealth
     );
+    
+    const actualHealing = targetClone.currentHealth - oldHealth;
+    console.log(`${spell.name} healed ${targetClone.species_name} for ${actualHealing} health`);
   }
   
-  // Apply self healing for Drain spells
-  if (spellEffect.selfHeal && caster.id !== target.id) {
-    console.log(`Applying self healing: ${spellEffect.selfHeal} to ${casterClone.species_name}`);
+  // ENHANCED: Apply self healing for drain spells
+  if (scaledSpellEffect.selfHeal && caster.id !== target.id) {
+    const oldCasterHealth = casterClone.currentHealth;
     casterClone.currentHealth = Math.min(
-      casterClone.currentHealth + spellEffect.selfHeal,
+      casterClone.currentHealth + scaledSpellEffect.selfHeal,
       casterClone.battleStats.maxHealth
     );
+    
+    const actualSelfHeal = casterClone.currentHealth - oldCasterHealth;
+    console.log(`${casterClone.species_name} drained ${actualSelfHeal} health from ${targetClone.species_name}`);
   }
   
-  // Apply stat changes if any
-  if (spellEffect.statChanges && typeof spellEffect.statChanges === 'object') {
-    Object.entries(spellEffect.statChanges).forEach(([stat, value]) => {
+  // ENHANCED: Apply stat changes with duration tracking
+  if (scaledSpellEffect.statChanges && Object.keys(scaledSpellEffect.statChanges).length > 0) {
+    Object.entries(scaledSpellEffect.statChanges).forEach(([stat, value]) => {
       if (targetClone.battleStats[stat] !== undefined) {
-        targetClone.battleStats[stat] += value;
+        targetClone.battleStats[stat] = Math.max(0, targetClone.battleStats[stat] + value);
       }
     });
   }
   
-  // Add active effect if it has a duration
-  if (spellEffect.duration > 0) {
+  // ENHANCED: Add active effect with detailed tracking
+  if (scaledSpellEffect.duration > 0) {
+    const powerLevel = basePowerMultiplier >= 1.4 ? 'maximum' :
+                     basePowerMultiplier >= 1.2 ? 'strong' :
+                     basePowerMultiplier >= 1.0 ? 'normal' : 'weak';
+    
     targetClone.activeEffects = [
       ...(targetClone.activeEffects || []),
       {
         id: Date.now() + Math.random(),
-        name: spell.name || "Spell Effect",
-        icon: '✨',
+        name: `${spell.name || "Spell"} Effect`,
+        icon: getSpellIcon(spell.spell_effect),
         type: spell.spell_type || "magic",
-        description: getEffectDescription(spell.spell_effect || "effect"),
-        duration: spellEffect.duration,
-        statEffect: spellEffect.statChanges || {},
-        healthEffect: spellEffect.healthOverTime || 0
+        description: getEffectDescription(spell.spell_effect || "magic", powerLevel),
+        duration: scaledSpellEffect.duration,
+        statEffect: scaledSpellEffect.statChanges || {},
+        healthEffect: scaledSpellEffect.healthOverTime || 0,
+        casterMagic: casterMagic,
+        powerLevel: powerLevel
       }
     ];
   }
@@ -382,12 +664,12 @@ export const applySpell = (caster, target, spell) => {
   return {
     updatedCaster: casterClone,
     updatedTarget: targetClone,
-    spellEffect
+    spellEffect: scaledSpellEffect
   };
 };
 
-// Put creature in defensive stance
-export const defendCreature = (creature) => {
+// ENHANCED: Put creature in defensive stance with better bonuses
+export const defendCreature = (creature, difficulty = 'medium') => {
   // Validate input
   if (!creature || !creature.battleStats) {
     console.error("Defend action failed - missing creature or battleStats:", creature);
@@ -397,36 +679,75 @@ export const defendCreature = (creature) => {
   // Deep clone to avoid mutations
   const creatureClone = JSON.parse(JSON.stringify(creature));
   
-  // Add defensive bonus (50% more defense for one turn)
+  // ENHANCED: Add defensive bonus with difficulty scaling
   creatureClone.isDefending = true;
   
-  // Calculate defense boosts
-  const physicalDefenseBoost = Math.round(creatureClone.battleStats.physicalDefense * 0.5);
-  const magicalDefenseBoost = Math.round(creatureClone.battleStats.magicalDefense * 0.5);
+  // Calculate enhanced defense boosts
+  const baseDefenseBoost = difficulty === 'expert' ? 0.8 : 
+                          difficulty === 'hard' ? 0.7 :
+                          difficulty === 'medium' ? 0.6 : 0.5;
+  
+  const physicalDefenseBoost = Math.round(creatureClone.battleStats.physicalDefense * baseDefenseBoost);
+  const magicalDefenseBoost = Math.round(creatureClone.battleStats.magicalDefense * baseDefenseBoost);
+  
+  // ENHANCED: Additional bonuses based on creature rarity
+  let rarityBonus = 0;
+  switch (creatureClone.rarity) {
+    case 'Legendary': rarityBonus = 5; break;
+    case 'Epic': rarityBonus = 3; break;
+    case 'Rare': rarityBonus = 2; break;
+    default: rarityBonus = 1; break;
+  }
   
   // Apply defense boost to battle stats
   creatureClone.battleStats = {
     ...creatureClone.battleStats,
-    physicalDefense: creatureClone.battleStats.physicalDefense + physicalDefenseBoost,
-    magicalDefense: creatureClone.battleStats.magicalDefense + magicalDefenseBoost
+    physicalDefense: creatureClone.battleStats.physicalDefense + physicalDefenseBoost + rarityBonus,
+    magicalDefense: creatureClone.battleStats.magicalDefense + magicalDefenseBoost + rarityBonus
   };
   
-  // Add defensive effect
+  // ENHANCED: Add comprehensive defensive effect
   creatureClone.activeEffects = [
     ...(creatureClone.activeEffects || []),
     {
       id: Date.now(),
-      name: 'Defending',
+      name: 'Defensive Stance',
       icon: '🛡️',
       type: 'defense',
-      description: 'Increased defense until next turn',
+      description: `Enhanced defensive posture (+${physicalDefenseBoost + rarityBonus} defense)`,
       duration: 1,
       statEffect: {
-        physicalDefense: physicalDefenseBoost,
-        magicalDefense: magicalDefenseBoost
-      }
+        physicalDefense: physicalDefenseBoost + rarityBonus,
+        magicalDefense: magicalDefenseBoost + rarityBonus
+      },
+      damageReduction: 0.1, // 10% damage reduction
+      counterAttackChance: difficulty === 'expert' ? 0.2 : 0.1 // Chance to counter-attack
     }
   ];
   
   return creatureClone;
+};
+
+// Helper function to get appropriate icon for tool effects
+const getToolIcon = (toolEffect) => {
+  const icons = {
+    'Surge': '⚡',
+    'Shield': '🛡️',
+    'Echo': '🔊',
+    'Drain': '🩸',
+    'Charge': '🔋'
+  };
+  return icons[toolEffect] || '🔧';
+};
+
+// Helper function to get appropriate icon for spell effects
+const getSpellIcon = (spellEffect) => {
+  const icons = {
+    'Surge': '💥',
+    'Shield': '✨',
+    'Echo': '🌊',
+    'Drain': '🌙',
+    'Charge': '☄️'
+  };
+  return icons[spellEffect] || '✨';
 };
