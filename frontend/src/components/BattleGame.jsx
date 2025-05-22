@@ -1871,12 +1871,16 @@ const BattleGame = ({ onClose }) => {
   
   // Check for win condition
   const checkWinCondition = useCallback(() => {
-    return enemyField.length === 0 && enemyHand.length === 0 && enemyDeck.length === 0;
+    const result = enemyField.length === 0 && enemyHand.length === 0 && enemyDeck.length === 0;
+    console.log(`Win condition check: enemyField=${enemyField.length}, enemyHand=${enemyHand.length}, enemyDeck=${enemyDeck.length}, result=${result}`);
+    return result;
   }, [enemyField, enemyHand, enemyDeck]);
   
-  // Check for loss condition
+  // Check for loss condition  
   const checkLossCondition = useCallback(() => {
-    return playerField.length === 0 && playerHand.length === 0 && playerDeck.length === 0;
+    const result = playerField.length === 0 && playerHand.length === 0 && playerDeck.length === 0;
+    console.log(`Loss condition check: playerField=${playerField.length}, playerHand=${playerHand.length}, playerDeck=${playerDeck.length}, result=${result}`);
+    return result;
   }, [playerField, playerHand, playerDeck]);
   
   // ========== PLAYER ACTIONS ==========
@@ -2411,24 +2415,12 @@ const BattleGame = ({ onClose }) => {
     }
   }, [enemyEnergy, addToBattleLog]);
   
-  // FIXED: Finish the enemy turn after all actions
+  // FIXED: Finish the enemy turn after all actions with win condition protection
   const finishEnemyTurn = useCallback(() => {
     console.log("Finishing enemy turn...");
     
-    // Check win/loss conditions
-    if (checkWinCondition()) {
-      dispatch({ type: ACTIONS.SET_GAME_STATE, gameState: 'victory' });
-      addToBattleLog("Victory! You've defeated all enemy creatures!");
-      setActionInProgress(false);
-      return;
-    }
-    
-    if (checkLossCondition()) {
-      dispatch({ type: ACTIONS.SET_GAME_STATE, gameState: 'defeat' });
-      addToBattleLog("Defeat! All your creatures have been defeated!");
-      setActionInProgress(false);
-      return;
-    }
+    // IMPORTANT: Don't check win conditions here - let the useEffect handle it
+    // This prevents race conditions between state updates and win condition checks
     
     // Apply ongoing effects
     dispatch({ type: ACTIONS.APPLY_ONGOING_EFFECTS });
@@ -2458,8 +2450,6 @@ const BattleGame = ({ onClose }) => {
     setActionInProgress(false);
     console.log("Enemy turn complete");
   }, [
-    checkWinCondition,
-    checkLossCondition,
     playerHand,
     playerDeck,
     enemyHand,
@@ -2739,32 +2729,47 @@ const BattleGame = ({ onClose }) => {
   }, [playerHand, playerField, enemyField, playerTools, playerSpells, playerEnergy]);
   
   // ========== EFFECTS ==========
-  // FIXED: Check win conditions after state updates, with proper logging
+  // FIXED: Check win conditions with debouncing and proper state guards
   useEffect(() => {
-    if (gameState !== 'battle') return;
-    
-    // Add debugging to see actual state
-    console.log('Win condition check:', {
-      enemyField: enemyField.length,
-      enemyHand: enemyHand.length, 
-      enemyDeck: enemyDeck.length,
-      playerField: playerField.length,
-      playerHand: playerHand.length,
-      playerDeck: playerDeck.length
-    });
-    
-    if (checkWinCondition()) {
-      console.log('VICTORY TRIGGERED - Enemy has no creatures left');
-      dispatch({ type: ACTIONS.SET_GAME_STATE, gameState: 'victory' });
-      addToBattleLog("Victory! You've defeated all enemy creatures!");
-      setActionInProgress(false);
-    } else if (checkLossCondition()) {
-      console.log('DEFEAT TRIGGERED - Player has no creatures left');
-      dispatch({ type: ACTIONS.SET_GAME_STATE, gameState: 'defeat' });
-      addToBattleLog("Defeat! All your creatures have been defeated!");
-      setActionInProgress(false);
+    if (gameState !== 'battle') {
+      console.log('Skipping win condition check - game state is:', gameState);
+      return;
     }
-  }, [gameState, enemyField, enemyHand, enemyDeck, playerField, playerHand, playerDeck, checkWinCondition, checkLossCondition, addToBattleLog]);
+    
+    // Add a small delay to ensure state has fully updated
+    const timeoutId = setTimeout(() => {
+      // Double-check game state hasn't changed during timeout
+      if (gameState !== 'battle') {
+        console.log('Game state changed during timeout, skipping win condition check');
+        return;
+      }
+      
+      console.log('Win condition check triggered:', {
+        enemyField: enemyField.length,
+        enemyHand: enemyHand.length, 
+        enemyDeck: enemyDeck.length,
+        playerField: playerField.length,
+        playerHand: playerHand.length,
+        playerDeck: playerDeck.length,
+        activePlayer: activePlayer,
+        actionInProgress: actionInProgress
+      });
+      
+      if (checkWinCondition()) {
+        console.log('VICTORY TRIGGERED - Enemy has no creatures left');
+        dispatch({ type: ACTIONS.SET_GAME_STATE, gameState: 'victory' });
+        addToBattleLog("Victory! You've defeated all enemy creatures!");
+        setActionInProgress(false);
+      } else if (checkLossCondition()) {
+        console.log('DEFEAT TRIGGERED - Player has no creatures left');
+        dispatch({ type: ACTIONS.SET_GAME_STATE, gameState: 'defeat' });
+        addToBattleLog("Defeat! All your creatures have been defeated!");
+        setActionInProgress(false);
+      }
+    }, 100); // Small delay to ensure state consistency
+    
+    return () => clearTimeout(timeoutId);
+  }, [gameState, enemyField.length, enemyHand.length, enemyDeck.length, playerField.length, playerHand.length, playerDeck.length, activePlayer, checkWinCondition, checkLossCondition, addToBattleLog, actionInProgress]);
   
   // ========== RENDER ==========
   return (
