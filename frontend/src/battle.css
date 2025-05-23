@@ -35,6 +35,30 @@
   border: 2px solid rgba(76, 175, 80, 0.3);
 }
 
+/* Desktop-specific layout wrapper */
+@media (min-width: 769px) {
+  .battle-content-wrapper {
+    display: flex;
+    flex: 1;
+    position: relative;
+  }
+  
+  .battle-main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .battle-sidebar {
+    width: 200px;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.85));
+    border-left: 2px solid rgba(76, 175, 80, 0.3);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+}
+
 /* Difficulty-based styling */
 .battle-game[data-difficulty="easy"] {
   border-color: rgba(76, 175, 80, 0.4);
@@ -410,6 +434,13 @@
   overflow-x: hidden;
   border-top: 1px solid rgba(76, 175, 80, 0.2);
   border-bottom: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+/* Desktop battlefield adjustments for sidebar */
+@media (min-width: 769px) {
+  .battlefield-container {
+    border-bottom: none;
+  }
 }
 
 .battlefield {
@@ -901,19 +932,26 @@
   height: 48px; /* FIXED: Smaller footer for compact cards */
 }
 
-/* Player hand styles - FIXED COLLAPSED VISIBILITY AND HOVER PREVIEW */
+/* ============= UPDATED PLAYER HAND STYLES - FIXED CARD VISIBILITY ============= */
 .player-hand {
   position: relative;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.8));
   border-top: 2px solid rgba(76, 175, 80, 0.3);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden; /* FIXED: Back to hidden to clip cards properly */
+  overflow: visible; /* FIXED: Allow overflow for card previews */
   flex-shrink: 0;
-  height: 40px; /* FIXED: Reduced to show just card headers peeking out */
-  z-index: 150; /* FIXED: Higher than battlefield but lower than battle log */
+  height: 40px; /* Collapsed height showing just headers */
+  z-index: 150;
 }
 
-/* FIXED: Visual feedback when hand is locked due to selections */
+/* Desktop-specific positioning at bottom */
+@media (min-width: 769px) {
+  .player-hand {
+    order: 3; /* Place at bottom on desktop */
+  }
+}
+
+/* Visual feedback when hand is locked due to selections */
 .player-hand.field-selected {
   border-top-color: rgba(244, 67, 54, 0.3);
 }
@@ -927,14 +965,12 @@
 .player-hand.expanded {
   height: 160px; /* Full height on hover */
   box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
-  overflow: visible; /* FIXED: Allow overflow when expanded */
-  z-index: 150; /* Keep same z-index */
+  z-index: 150; /* Same z-index, overflow handles visibility */
 }
 
-/* FIXED: Prevent hover expansion when field creature is selected */
+/* Prevent hover expansion when field creature is selected */
 .player-hand.field-selected:hover {
   height: 40px; /* Stay collapsed */
-  overflow: hidden; /* Keep cards tucked */
   box-shadow: none;
 }
 
@@ -953,7 +989,7 @@
   z-index: 2;
 }
 
-/* FIXED: Lock indicator styling */
+/* Lock indicator styling */
 .lock-indicator {
   font-size: 10px;
   color: #F44336;
@@ -961,9 +997,9 @@
   font-weight: normal;
 }
 
-/* ENHANCED: Visual indicator for expandable hand */
+/* Visual indicator for expandable hand */
 .hand-title::after {
-  content: '▼';
+  content: '▲'; /* Arrow pointing up since hand is at bottom */
   position: absolute;
   right: 15px;
   font-size: 10px;
@@ -971,7 +1007,7 @@
   transition: transform 0.3s ease;
 }
 
-/* FIXED: Hide expand indicator when field creature is selected */
+/* Hide expand indicator when field creature is selected */
 .player-hand.field-selected .hand-title::after {
   opacity: 0.2;
   content: '━'; /* Show locked indicator */
@@ -997,7 +1033,14 @@
   position: relative;
 }
 
-/* FIXED: Hand card wrappers for collapsed state */
+/* FIXED: Allow proper overflow for hovered cards */
+.player-hand:hover .hand-cards,
+.player-hand.expanded .hand-cards {
+  overflow-y: visible;
+  padding-bottom: 10px; /* Less padding needed when at bottom */
+}
+
+/* Hand card wrappers for collapsed state */
 .hand-card-wrapper {
   position: relative;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1006,40 +1049,43 @@
   align-items: center;
 }
 
-/* FIXED: Collapsed state - cards tucked behind with headers peeking */
+/* Collapsed state - cards tucked behind with headers peeking */
 .player-hand:not(:hover):not(.expanded) .hand-card-wrapper {
   width: 80px;
   overflow: visible;
 }
 
 .player-hand:not(:hover):not(.expanded) .creature-card {
-  transform: translateY(155px); /* FIXED: Position so only header peeks above hand container */
+  transform: translateY(155px); /* Position so only header peeks above */
   width: 80px;
   height: 190px;
-  z-index: 1; /* FIXED: Behind battle log by default */
+  z-index: 1;
 }
 
-/* REMOVED: Card name label since we're showing the actual card header now */
-.card-name-label {
-  display: none;
-}
-
-/* FIXED: Full card preview on hover/tap with proper positioning */
+/* FIXED: Full card preview on hover with upward movement */
 .hand-card-wrapper:hover .creature-card,
 .hand-card-wrapper.tapped .creature-card,
 .hand-card-wrapper.selected .creature-card {
-  transform: translateY(-60px) scale(1.15); /* FIXED: Move up enough to show full card */
-  z-index: 10000; /* FIXED: Very high z-index to appear above battle log */
+  transform: translateY(-150px) scale(1.15); /* Move UP from bottom */
+  z-index: 10000; /* Very high z-index to appear above everything */
   position: relative;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 0 3px rgba(76, 175, 80, 0.5);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8), 0 0 0 3px rgba(76, 175, 80, 0.5);
 }
 
-/* FIXED: Keep selected cards elevated */
+/* When hand is expanded, cards need less upward movement */
+.player-hand:hover .hand-card-wrapper:hover .creature-card,
+.player-hand.expanded .hand-card-wrapper:hover .creature-card,
+.player-hand:hover .hand-card-wrapper.selected .creature-card,
+.player-hand.expanded .hand-card-wrapper.selected .creature-card {
+  transform: translateY(-30px) scale(1.15); /* Less movement needed when expanded */
+}
+
+/* Keep selected cards elevated */
 .hand-card-wrapper.selected .creature-card {
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 0 3px rgba(76, 175, 80, 0.8);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.8), 0 0 0 3px rgba(76, 175, 80, 0.8);
 }
 
-/* FIXED: Ensure proper stacking during hover */
+/* Ensure proper stacking during hover */
 .hand-card-wrapper:hover,
 .hand-card-wrapper.tapped,
 .hand-card-wrapper.selected {
@@ -1092,6 +1138,36 @@
   border-top: 2px solid rgba(76, 175, 80, 0.3);
   transition: opacity 0.3s ease;
   flex-shrink: 0;
+}
+
+/* Desktop sidebar action panel */
+@media (min-width: 769px) {
+  .action-panel {
+    border-top: none;
+    border-bottom: 2px solid rgba(76, 175, 80, 0.3);
+    padding: 15px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .action-panel .selected-info {
+    margin-bottom: 15px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .action-panel .action-buttons {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .action-panel .action-btn {
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 12px;
+  }
 }
 
 .action-panel.disabled {
@@ -1308,7 +1384,14 @@
   transition: max-height 0.3s ease;
   flex-shrink: 0;
   position: relative;
-  z-index: 200; /* FIXED: Higher than hand to hide cards behind it */
+  z-index: 100; /* Lower than hand to allow cards to appear above */
+}
+
+/* Desktop-specific positioning above hand */
+@media (min-width: 769px) {
+  .battle-log {
+    order: 2; /* Place above hand on desktop */
+  }
 }
 
 .battle-log:hover {
@@ -1435,6 +1518,21 @@
   color: #4CAF50; 
   font-weight: bold;
   text-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
+}
+
+/* Desktop layout order */
+@media (min-width: 769px) {
+  .battle-main-area {
+    order: 1; /* Battlefield first */
+  }
+  
+  .battle-log {
+    order: 2; /* Log second */
+  }
+  
+  .player-hand {
+    order: 3; /* Hand at bottom */
+  }
 }
 
 /* Battle result styles */
@@ -2050,31 +2148,34 @@
   line-height: 1.4;
 }
 
-/* Mobile adjustments */
+/* ============= MOBILE ADJUSTMENTS - COMPLETELY REWORKED ============= */
 @media (max-width: 768px) {
   .battle-game-overlay {
     align-items: flex-start;
-    padding: 5px;
+    padding: 0;
   }
   
   .battle-game {
-    margin: 5px auto;
-    max-height: none;
-    border-radius: 8px;
+    margin: 0;
+    max-height: 100vh;
     height: 100vh;
+    border-radius: 0;
     max-width: 100%;
   }
   
+  /* FIXED: Mobile-specific layout with always visible hand */
   .battle-header {
-    flex-direction: column;
-    gap: 8px;
-    padding: 6px 10px;
+    flex-direction: row;
+    gap: 5px;
+    padding: 6px 8px;
     min-height: 40px;
+    flex-wrap: wrap;
   }
   
   .battle-info {
     width: 100%;
     justify-content: space-around;
+    gap: 8px;
   }
   
   .energy-displays {
@@ -2082,123 +2183,284 @@
     justify-content: space-around;
   }
   
+  /* FIXED: Adjusted battlefield to accommodate visible hand */
   .battlefield-container {
     flex: 1;
+    max-height: calc(100vh - 380px); /* Account for header, hand, actions, log */
+  }
+  
+  .battlefield {
+    padding: 5px;
   }
   
   .battlefield-enemy, 
   .battlefield-player {
-    padding: 10px 5px;
-    gap: 6px;
-    min-height: 120px;
+    padding: 8px 5px;
+    gap: 5px;
+    min-height: 100px;
+  }
+  
+  .battlefield-center {
+    height: 30px;
   }
   
   .creature-slot {
-    width: 100px;
-    height: 155px;
-    margin: 3px;
+    width: 90px;
+    height: 140px;
+    margin: 2px;
   }
   
   .creature-card {
-    width: 100px;
-    height: 155px;
+    width: 90px;
+    height: 140px;
   }
   
   .creature-image-container {
-    height: 96px;
+    height: 86px;
   }
   
   .creature-card-header {
-    height: 18px;
+    height: 16px;
+    padding: 1px 4px;
   }
   
   .creature-name {
-    font-size: 8px;
-    max-width: 55px;
+    font-size: 7px;
+    max-width: 50px;
   }
   
   .creature-form {
-    font-size: 7px;
+    font-size: 6px;
+    padding: 0 2px;
   }
   
   .creature-card-footer {
-    height: 41px; /* FIXED: Adjusted for mobile */
+    height: 38px;
+    padding: 2px;
   }
   
   .health-bar-container {
-    height: 8px;
+    height: 6px;
+    margin: 1px 2px;
   }
   
   .health-text {
-    font-size: 8px;
+    font-size: 7px;
   }
   
   .mini-stats {
     gap: 1px;
+    padding: 1px;
   }
   
   .mini-stat {
-    font-size: 7px;
-    height: 12px;
+    font-size: 6px;
+    height: 11px;
     padding: 0 1px;
   }
   
   .mini-stat .stat-icon {
-    font-size: 8px;
-  }
-  
-  .mini-stat .stat-value {
     font-size: 7px;
   }
   
+  .mini-stat .stat-value {
+    font-size: 6px;
+  }
+  
   .status-icon {
-    width: 14px;
-    height: 14px;
-    font-size: 8px;
+    width: 12px;
+    height: 12px;
+    font-size: 7px;
   }
   
+  /* ============= MOBILE HAND - COMPLETELY REDESIGNED ============= */
   .player-hand {
-    height: 40px; /* FIXED: Match desktop collapsed height */
+    height: auto !important; /* FIXED: Always visible on mobile */
+    position: relative;
+    overflow: visible !important;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.85));
+    padding-bottom: 0;
+    z-index: 50; /* Lower z-index on mobile */
+    flex-shrink: 0;
   }
   
-  .player-hand:hover,
-  .player-hand.expanded {
-    height: 140px;
+  /* Remove all hover effects on mobile */
+  .player-hand:hover {
+    height: auto !important;
+    box-shadow: none !important;
+  }
+  
+  .player-hand.field-selected:hover {
+    height: auto !important;
+  }
+  
+  /* Hide expansion indicators on mobile */
+  .hand-title::after {
+    display: none;
+  }
+  
+  .player-hand::before {
+    display: none;
+  }
+  
+  .hand-title {
+    font-size: 11px;
+    margin: 3px 0 2px 10px;
+  }
+  
+  /* Mobile hand cards container */
+  .hand-cards {
+    display: flex;
+    gap: 5px;
+    padding: 5px 10px 10px 10px;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    min-height: 110px; /* Ensure minimum height for cards */
+  }
+  
+  /* Remove collapsed state animations on mobile */
+  .player-hand:hover .hand-cards,
+  .player-hand.expanded .hand-cards {
+    overflow-y: visible;
+    padding-bottom: 10px;
+    margin-bottom: 0;
+  }
+  
+  /* Mobile hand card wrapper */
+  .hand-card-wrapper {
+    width: 75px;
+    flex-shrink: 0;
+    height: 100px;
+  }
+  
+  /* Cards always visible on mobile */
+  .player-hand:not(:hover):not(.expanded) .hand-card-wrapper {
+    width: 75px;
   }
   
   .player-hand:not(:hover):not(.expanded) .creature-card {
-    transform: translateY(145px); /* FIXED: Adjusted for new collapsed height */
-    width: 70px;
+    transform: none !important; /* No transform on mobile */
+    width: 75px;
+    height: 100px;
+    position: relative;
+    z-index: 1;
   }
   
-  .card-name-label {
+  /* Mobile card hover/selection */
+  .hand-card-wrapper:active .creature-card,
+  .hand-card-wrapper.selected .creature-card {
+    transform: scale(1.05) !important; /* Subtle scale instead of translate */
+    z-index: 100;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(76, 175, 80, 0.6);
+  }
+  
+  /* Prevent upward movement on mobile */
+  .hand-card-wrapper:hover .creature-card,
+  .hand-card-wrapper.tapped .creature-card {
+    transform: scale(1.05) !important;
+  }
+  
+  .player-hand:hover .hand-card-wrapper:hover .creature-card,
+  .player-hand.expanded .hand-card-wrapper:hover .creature-card,
+  .player-hand:hover .hand-card-wrapper.selected .creature-card,
+  .player-hand.expanded .hand-card-wrapper.selected .creature-card {
+    transform: scale(1.05) !important;
+  }
+  
+  /* Mobile-specific creature card in hand */
+  .hand-card-wrapper .creature-card {
+    width: 75px;
+    height: 100px;
+  }
+  
+  .hand-card-wrapper .creature-image-container {
+    height: 58px;
+  }
+  
+  .hand-card-wrapper .creature-card-footer {
+    height: 24px;
+    padding: 1px 2px;
+  }
+  
+  .hand-card-wrapper .health-bar-container {
+    height: 4px;
+  }
+  
+  .hand-card-wrapper .mini-stats {
+    display: none; /* Hide stats in hand on mobile to save space */
+  }
+  
+  /* Show simplified stats on mobile hand cards */
+  .hand-card-wrapper .creature-card-footer::after {
+    content: attr(data-power) " / " attr(data-defense);
     font-size: 8px;
-    max-width: 65px;
+    color: #ccc;
+    text-align: center;
+    display: block;
+    margin-top: 2px;
   }
   
+  /* ============= MOBILE ACTION PANEL ============= */
   .action-panel {
-    padding: 6px 10px;
+    padding: 6px 8px;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.9));
+    position: relative;
+    z-index: 60; /* Higher than hand but lower than modals */
+  }
+  
+  .selected-info {
+    font-size: 10px;
+    padding: 4px 6px;
+    margin-bottom: 4px;
   }
   
   .action-buttons {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
+    gap: 4px;
   }
   
   .action-btn {
-    padding: 5px 10px;
-    font-size: 10px;
-    flex: 0 0 calc(33.33% - 8px);
-    margin: 2px;
+    padding: 5px 8px;
+    font-size: 9px;
+    flex: 0 0 calc(33.33% - 4px);
+    min-width: auto;
+    height: 30px;
   }
   
+  .action-btn .btn-icon {
+    font-size: 10px;
+    margin-right: 2px;
+  }
+  
+  /* ============= MOBILE BATTLE LOG ============= */
   .battle-log {
     max-height: 60px;
+    padding: 4px 8px;
+    z-index: 40; /* Lower than action panel */
   }
   
   .battle-log:hover {
     max-height: 120px;
+  }
+  
+  .log-title {
+    font-size: 10px;
+  }
+  
+  .log-entries {
+    font-size: 9px;
+  }
+  
+  /* Other mobile adjustments */
+  .difficulty-selector {
+    padding: 10px;
+  }
+  
+  .difficulty-option {
+    width: 140px;
   }
   
   .stat-grid {
@@ -2209,36 +2471,18 @@
     grid-template-columns: 1fr;
   }
   
-  .difficulty-option {
-    width: 160px;
-  }
-  
-  .difficulty-selector {
-    padding: 15px;
-  }
-  
-  .difficulty-options {
-    gap: 10px;
-  }
-  
   .modal-tabs {
     flex-direction: column;
   }
   
   .tab {
-    padding: 10px;
+    padding: 8px;
+    font-size: 12px;
   }
   
-  /* Mobile responsive adjustments for rewards */
   .battle-result {
-    padding: 15px;
+    padding: 10px;
     margin: 5px;
-    max-height: 90vh;
-  }
-  
-  .result-header {
-    margin: -15px -15px 15px -15px;
-    padding: 12px;
   }
   
   .result-header h2 {
@@ -2248,93 +2492,53 @@
   .reward-summary {
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
   }
   
   .reward-item {
-    min-width: 200px;
-    justify-content: center;
-  }
-  
-  .items-list {
-    max-height: 150px;
-  }
-  
-  .reward-item-card {
-    padding: 10px;
-    height: 45px;
-    min-height: 45px;
-  }
-  
-  .reward-item-card .item-name {
-    font-size: 12px;
-  }
-  
-  .item-rarity {
-    font-size: 10px;
-  }
-  
-  .bonus-item {
-    font-size: 12px;
-    padding: 6px 10px;
-    min-height: 28px;
+    min-width: 150px;
   }
   
   .result-actions {
     flex-direction: column;
     align-items: center;
+    gap: 10px;
   }
   
   .play-again-btn, .close-btn {
     width: 100%;
-    max-width: 200px;
+    max-width: 180px;
   }
 }
 
 /* Touch device optimizations */
 @media (hover: none) and (pointer: coarse) {
-  /* Add tap indicator for expandable elements */
-  .player-hand::before {
-    content: 'Tap to expand hand';
-    position: absolute;
-    top: 5px;
-    right: 40px;
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.4);
-    opacity: 1;
-    transition: opacity 0.3s ease;
-  }
-  
-  /* FIXED: Different message when locked */
-  .player-hand.field-selected::before {
-    content: 'Hand locked';
-  }
-  
-  .player-hand.hand-selected::before {
-    content: '';
-  }
-  
-  .player-hand.expanded::before {
-    opacity: 0;
-  }
-  
-  /* Make expanded state toggleable on tap */
+  /* Remove desktop-specific hover behaviors */
   .player-hand {
-    cursor: pointer;
+    cursor: default;
   }
   
-  /* FIXED: Disable tap when field selected */
   .player-hand.field-selected {
     cursor: default;
   }
   
-  /* FIXED: Keep collapsed state unless tapped */
-  .player-hand:hover {
-    height: 40px; /* Stay collapsed unless tapped */
+  /* Ensure battle log stays collapsed on touch devices unless tapped */
+  .battle-log:hover {
+    max-height: 80px;
   }
   
-  .battle-log:hover {
-    max-height: 80px; /* Stay collapsed unless tapped */
+  /* Add tap-to-expand for battle log */
+  .battle-log.expanded {
+    max-height: 150px;
+  }
+  
+  /* Better touch targets */
+  .action-btn {
+    min-height: 36px;
+  }
+  
+  .creature-card {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
@@ -2368,11 +2572,11 @@
   }
   
   .creature-image-container {
-    height: 128px; /* FIXED: Adjusted for new footer height */
+    height: 128px;
   }
   
   .creature-card-footer {
-    height: 52px; /* FIXED: Same as standard size */
+    height: 52px;
   }
   
   .mini-stats {
@@ -2386,17 +2590,7 @@
   }
 }
 
-/* ADDITIONAL ENHANCEMENTS */
-
-/* Smooth transitions for all interactive elements */
-.player-hand,
-.battle-log,
-.creature-card,
-.action-btn {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Performance optimization */
+/* Additional performance optimizations */
 .creature-card {
   will-change: transform;
 }
@@ -2424,3 +2618,14 @@
     0%, 100% { opacity: 1; }
   }
 }
+
+/* Z-index hierarchy for proper layering */
+/* 
+  40: Battle log
+  50: Player hand base
+  60: Action panel
+  100: Mobile selected cards
+  150: Desktop expanded hand
+  10000: Hovered/selected cards in hand
+  10001: Card wrapper when hovered
+*/
